@@ -23,15 +23,21 @@ All examples are unique with diverse vocabulary, sentence structures, and target
 layer_linear_probes/
 ├── linear_probe_pca_experiment.py  # Main experiment script
 ├── pos_dataset_generator.py        # Comprehensive POS dataset (800 examples)
-├── src/
-│   ├── __init__.py
-│   └── model.py                    # ModelLoader class for GPT-2
-└── README.md                       # This file
+├── requirements.txt                # Python dependencies
+├── README.md                       # This file
+├── .gitignore                      # Git ignore patterns
+└── src/
+    ├── __init__.py
+    └── model.py                    # ModelLoader class for GPT-2
 ```
 
 ## Installation
 
 ```bash
+# Install all dependencies
+pip install -r requirements.txt
+
+# Or install manually
 pip install transformers torch scikit-learn matplotlib numpy scipy pandas tqdm sae-lens transformer-lens
 ```
 
