@@ -69,12 +69,16 @@ python linear_probe_pca_experiment.py \
 ```
 outputs/linear_probe_pca/
 ├── experiment.log              # Detailed execution log
-├── raw_results.csv            # All measurements (layer, task, run, MI, accuracy, F1)
+├── raw_results.csv            # All measurements (layer, task, method, run, MI, accuracy, F1)
 └── plots/
-    ├── plurality_mutual_information.png
-    ├── plurality_accuracy.png
-    ├── pos_mutual_information.png
-    └── pos_accuracy.png
+    ├── plurality_pca_mutual_information.png
+    ├── plurality_pca_accuracy.png
+    ├── plurality_random_mutual_information.png
+    ├── plurality_random_accuracy.png
+    ├── pos_pca_mutual_information.png
+    ├── pos_pca_accuracy.png
+    ├── pos_random_mutual_information.png
+    └── pos_random_accuracy.png
 ```
 
 ## Experiment Pipeline
@@ -86,19 +90,23 @@ For each of 11 layers (1-11, skipping layer 0 input embeddings):
    - Extract activation at last token of target word
    - Handle multi-token words correctly
 
-2. **Apply PCA**
-   - Fit PCA on layer activations
-   - Reduce to top 10 components
+2. **Method A: PCA (Top 10 Components)**
+   - Fit PCA on the activation matrix
+   - Reduce to top 10 principal components
    - Log explained variance (per-component and cumulative)
-
-3. **Train Probes** (3 runs per layer)
-   - Train LogisticRegression on PCA-reduced activations
-   - No train/test split (train and evaluate on all data)
+   - Train 3 LogisticRegression probes (for confidence intervals)
    - Calculate metrics: Mutual Information, Accuracy, F1 Score
 
+3. **Method B: Random Baseline (384 Features = width/2)**
+   - Randomly sample 3 different subsets of 384 features
+   - Train 1 LogisticRegression probe per subset
+   - Calculate metrics: Mutual Information, Accuracy, F1 Score
+   - **Purpose**: Compare if PCA helps or if random features perform similarly
+
 4. **Aggregate Results**
-   - Compute mean and 95% confidence intervals across 3 runs
-   - Generate bar plots with error bars
+   - Compute mean and 95% confidence intervals across runs
+   - Generate separate bar plots for PCA and Random baseline
+   - Compare performance between methods
 
 ## Metrics
 

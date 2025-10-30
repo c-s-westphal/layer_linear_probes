@@ -1197,7 +1197,7 @@ def apply_pca_and_probe(
         f1_scores.append(f1)
 
     if logger:
-        logger.info(f"  Probe performance ({n_runs} runs):")
+        logger.info(f"  PCA Probe performance ({n_runs} runs):")
         logger.info(f"    Mutual Information: {np.mean(mi_scores):.4f} ± {np.std(mi_scores):.4f}")
         logger.info(f"    Accuracy: {np.mean(accuracy_scores):.4f} ± {np.std(accuracy_scores):.4f}")
         logger.info(f"    F1 Score: {np.mean(f1_scores):.4f} ± {np.std(f1_scores):.4f}")
@@ -1205,6 +1205,73 @@ def apply_pca_and_probe(
     return {
         'explained_variance_ratio': explained_var,
         'cumulative_variance': cumulative_var[-1],
+        'mutual_information': mi_scores,
+        'accuracy': accuracy_scores,
+        'f1_score': f1_scores
+    }
+
+
+def apply_random_and_probe(
+    activations: np.ndarray,
+    labels: np.ndarray,
+    n_features: int = 384,
+    n_subsets: int = 3,
+    logger: logging.Logger = None
+) -> Dict:
+    """
+    Sample random feature subsets and train probes (baseline comparison).
+
+    Instead of PCA, randomly sample n_features dimensions from the 768-dim activations.
+    Train one probe per random subset (3 subsets total for comparison).
+
+    Args:
+        activations: (n_examples, 768) activation matrix
+        labels: (n_examples,) label array
+        n_features: Number of random features to sample (default: 384 = width/2)
+        n_subsets: Number of random subsets to try (default: 3)
+        logger: Logger instance
+
+    Returns:
+        Dictionary with:
+        - mutual_information: list of MI scores (one per subset)
+        - accuracy: list of accuracy scores (one per subset)
+        - f1_score: list of F1 scores (one per subset)
+    """
+    d_model = activations.shape[1]  # Should be 768
+
+    mi_scores = []
+    accuracy_scores = []
+    f1_scores = []
+
+    for subset_idx in range(n_subsets):
+        # Randomly sample features
+        np.random.seed(42 + subset_idx)  # Reproducible
+        selected_features = np.random.choice(d_model, size=n_features, replace=False)
+        random_activations = activations[:, selected_features]
+
+        # Train logistic regression probe
+        probe = LogisticRegression(max_iter=1000, random_state=42 + subset_idx)
+        probe.fit(random_activations, labels)
+
+        # Get predictions
+        predictions = probe.predict(random_activations)
+
+        # Calculate metrics
+        mi = mutual_info_score(labels, predictions)
+        acc = accuracy_score(labels, predictions)
+        f1 = f1_score(labels, predictions, average='macro')
+
+        mi_scores.append(mi)
+        accuracy_scores.append(acc)
+        f1_scores.append(f1)
+
+    if logger:
+        logger.info(f"  Random baseline ({n_subsets} subsets of {n_features} features):")
+        logger.info(f"    Mutual Information: {np.mean(mi_scores):.4f} ± {np.std(mi_scores):.4f}")
+        logger.info(f"    Accuracy: {np.mean(accuracy_scores):.4f} ± {np.std(accuracy_scores):.4f}")
+        logger.info(f"    F1 Score: {np.mean(f1_scores):.4f} ± {np.std(f1_scores):.4f}")
+
+    return {
         'mutual_information': mi_scores,
         'accuracy': accuracy_scores,
         'f1_score': f1_scores
@@ -1371,7 +1438,9 @@ def main():
             model, plurality_data, layer, logger
         )
 
-        plurality_results = apply_pca_and_probe(
+        # Method 1: PCA (top 10 components)
+        logger.info("\n  Method: PCA (top 10 components)")
+        plurality_pca_results = apply_pca_and_probe(
             plurality_acts,
             plurality_labels,
             n_components=args.n_components,
@@ -1379,15 +1448,38 @@ def main():
             logger=logger
         )
 
-        # Add results to dataframe
+        # Add PCA results
         for run in range(args.n_runs):
             all_results.append({
                 'layer': layer,
                 'task': 'plurality',
+                'method': 'pca',
                 'run': run,
-                'mutual_information': plurality_results['mutual_information'][run],
-                'accuracy': plurality_results['accuracy'][run],
-                'f1_score': plurality_results['f1_score'][run]
+                'mutual_information': plurality_pca_results['mutual_information'][run],
+                'accuracy': plurality_pca_results['accuracy'][run],
+                'f1_score': plurality_pca_results['f1_score'][run]
+            })
+
+        # Method 2: Random baseline (3 subsets of 384 features)
+        logger.info("\n  Method: Random baseline (3 subsets of 384 features)")
+        plurality_random_results = apply_random_and_probe(
+            plurality_acts,
+            plurality_labels,
+            n_features=384,  # width/2
+            n_subsets=3,
+            logger=logger
+        )
+
+        # Add random baseline results
+        for run in range(3):
+            all_results.append({
+                'layer': layer,
+                'task': 'plurality',
+                'method': 'random',
+                'run': run,
+                'mutual_information': plurality_random_results['mutual_information'][run],
+                'accuracy': plurality_random_results['accuracy'][run],
+                'f1_score': plurality_random_results['f1_score'][run]
             })
 
         # Process POS task
@@ -1398,7 +1490,9 @@ def main():
             model, pos_data, layer, logger
         )
 
-        pos_results = apply_pca_and_probe(
+        # Method 1: PCA (top 10 components)
+        logger.info("\n  Method: PCA (top 10 components)")
+        pos_pca_results = apply_pca_and_probe(
             pos_acts,
             pos_labels,
             n_components=args.n_components,
@@ -1406,15 +1500,38 @@ def main():
             logger=logger
         )
 
-        # Add results to dataframe
+        # Add PCA results
         for run in range(args.n_runs):
             all_results.append({
                 'layer': layer,
                 'task': 'pos',
+                'method': 'pca',
                 'run': run,
-                'mutual_information': pos_results['mutual_information'][run],
-                'accuracy': pos_results['accuracy'][run],
-                'f1_score': pos_results['f1_score'][run]
+                'mutual_information': pos_pca_results['mutual_information'][run],
+                'accuracy': pos_pca_results['accuracy'][run],
+                'f1_score': pos_pca_results['f1_score'][run]
+            })
+
+        # Method 2: Random baseline (3 subsets of 384 features)
+        logger.info("\n  Method: Random baseline (3 subsets of 384 features)")
+        pos_random_results = apply_random_and_probe(
+            pos_acts,
+            pos_labels,
+            n_features=384,  # width/2
+            n_subsets=3,
+            logger=logger
+        )
+
+        # Add random baseline results
+        for run in range(3):
+            all_results.append({
+                'layer': layer,
+                'task': 'pos',
+                'method': 'random',
+                'run': run,
+                'mutual_information': pos_random_results['mutual_information'][run],
+                'accuracy': pos_random_results['accuracy'][run],
+                'f1_score': pos_random_results['f1_score'][run]
             })
 
     # Create results dataframe
@@ -1434,58 +1551,102 @@ def main():
     plots_dir = output_dir / "plots"
     plots_dir.mkdir(exist_ok=True)
 
-    # Plurality plots
+    # Plurality plots - PCA vs Random comparison
     plurality_df = results_df[results_df['task'] == 'plurality']
+    plurality_pca_df = plurality_df[plurality_df['method'] == 'pca']
+    plurality_random_df = plurality_df[plurality_df['method'] == 'random']
 
+    logger.info("\nPlurality - PCA method:")
     create_bar_plot(
-        plurality_df,
+        plurality_pca_df,
         'mutual_information',
         'Mutual Information',
-        'Plurality: Mutual Information Across Layers',
-        plots_dir / 'plurality_mutual_information.png',
+        'Plurality (PCA): Mutual Information Across Layers',
+        plots_dir / 'plurality_pca_mutual_information.png',
         logger
     )
 
     create_bar_plot(
-        plurality_df,
+        plurality_pca_df,
         'accuracy',
         'Accuracy',
-        'Plurality: Classification Accuracy Across Layers',
-        plots_dir / 'plurality_accuracy.png',
+        'Plurality (PCA): Classification Accuracy Across Layers',
+        plots_dir / 'plurality_pca_accuracy.png',
         logger
     )
 
-    # POS plots
+    logger.info("\nPlurality - Random baseline:")
+    create_bar_plot(
+        plurality_random_df,
+        'mutual_information',
+        'Mutual Information',
+        'Plurality (Random 384): Mutual Information Across Layers',
+        plots_dir / 'plurality_random_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        plurality_random_df,
+        'accuracy',
+        'Accuracy',
+        'Plurality (Random 384): Classification Accuracy Across Layers',
+        plots_dir / 'plurality_random_accuracy.png',
+        logger
+    )
+
+    # POS plots - PCA vs Random comparison
     pos_df = results_df[results_df['task'] == 'pos']
+    pos_pca_df = pos_df[pos_df['method'] == 'pca']
+    pos_random_df = pos_df[pos_df['method'] == 'random']
 
+    logger.info("\nPOS - PCA method:")
     create_bar_plot(
-        pos_df,
+        pos_pca_df,
         'mutual_information',
         'Mutual Information',
-        'Part of Speech: Mutual Information Across Layers',
-        plots_dir / 'pos_mutual_information.png',
+        'Part of Speech (PCA): Mutual Information Across Layers',
+        plots_dir / 'pos_pca_mutual_information.png',
         logger
     )
 
     create_bar_plot(
-        pos_df,
+        pos_pca_df,
         'accuracy',
         'Accuracy',
-        'Part of Speech: Classification Accuracy Across Layers',
-        plots_dir / 'pos_accuracy.png',
+        'Part of Speech (PCA): Classification Accuracy Across Layers',
+        plots_dir / 'pos_pca_accuracy.png',
         logger
     )
 
-    logger.info(f"\nGenerated 4 plots in: {plots_dir}")
+    logger.info("\nPOS - Random baseline:")
+    create_bar_plot(
+        pos_random_df,
+        'mutual_information',
+        'Mutual Information',
+        'Part of Speech (Random 384): Mutual Information Across Layers',
+        plots_dir / 'pos_random_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        pos_random_df,
+        'accuracy',
+        'Accuracy',
+        'Part of Speech (Random 384): Classification Accuracy Across Layers',
+        plots_dir / 'pos_random_accuracy.png',
+        logger
+    )
+
+    logger.info(f"\nGenerated 8 plots in: {plots_dir} (4 PCA + 4 Random baseline)")
 
     # Summary statistics
     logger.info(f"\n{'='*80}")
     logger.info("SUMMARY STATISTICS")
     logger.info("="*80)
 
-    logger.info("\nPlurality Task:")
+    logger.info("\nPlurality Task - PCA (10 components):")
     for layer in range(1, 12):
-        layer_df = plurality_df[plurality_df['layer'] == layer]
+        layer_df = plurality_pca_df[plurality_pca_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
             f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
@@ -1493,9 +1654,29 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task:")
+    logger.info("\nPlurality Task - Random Baseline (384 features):")
     for layer in range(1, 12):
-        layer_df = pos_df[pos_df['layer'] == layer]
+        layer_df = plurality_random_df[plurality_random_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nPart of Speech Task - PCA (10 components):")
+    for layer in range(1, 12):
+        layer_df = pos_pca_df[pos_pca_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nPart of Speech Task - Random Baseline (384 features):")
+    for layer in range(1, 12):
+        layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
             f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
