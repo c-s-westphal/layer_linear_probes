@@ -1272,7 +1272,7 @@ def apply_pca_and_probe(
 def apply_random_and_probe(
     activations: np.ndarray,
     labels: np.ndarray,
-    n_features: int = 384,
+    n_features: int = 38,
     n_subsets: int = 5,
     logger: logging.Logger = None
 ) -> Dict:
@@ -1285,7 +1285,7 @@ def apply_random_and_probe(
     Args:
         activations: (n_examples, 768) activation matrix
         labels: (n_examples,) label array
-        n_features: Number of random features to sample (default: 384 = width/2)
+        n_features: Number of random features to sample (default: 38 = width/20)
         n_subsets: Number of random subsets to try (default: 5)
         logger: Logger instance
 
@@ -1530,12 +1530,12 @@ def main():
                 'f1_score': pos_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (5 subsets of 384 features)
-        logger.info("\n  Method: Random baseline (5 subsets of 384 features)")
+        # Method 2: Random baseline (5 subsets of 38 features)
+        logger.info("\n  Method: Random baseline (5 subsets of 38 features)")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
-            n_features=384,  # width/2
+            n_features=38,  # width/20
             n_subsets=5,
             logger=logger
         )
@@ -1603,7 +1603,7 @@ def main():
         pos_random_df,
         'mutual_information',
         'Mutual Information',
-        'Part of Speech (Random 384): Mutual Information Across Layers',
+        'Part of Speech (Random 38): Mutual Information Across Layers',
         plots_dir / 'pos_random_mutual_information.png',
         logger
     )
@@ -1612,7 +1612,7 @@ def main():
         pos_random_df,
         'accuracy',
         'Accuracy',
-        'Part of Speech (Random 384): Classification Accuracy Across Layers',
+        'Part of Speech (Random 38): Classification Accuracy Across Layers',
         plots_dir / 'pos_random_accuracy.png',
         logger
     )
@@ -1634,7 +1634,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (384 features):")
+    logger.info("\nPart of Speech Task - Random Baseline (38 features):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
