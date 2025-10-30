@@ -1272,21 +1272,22 @@ def apply_pca_and_probe(
 def apply_random_and_probe(
     activations: np.ndarray,
     labels: np.ndarray,
-    n_features: int = 38,
-    n_subsets: int = 5,
+    n_features: int = None,  # Ignored when using Gaussian sampling
+    n_subsets: int = 20,
     logger: logging.Logger = None
 ) -> Dict:
     """
     Sample random feature subsets and train probes (baseline comparison).
 
-    Instead of PCA, randomly sample n_features dimensions from the 768-dim activations.
-    Train one probe per random subset (5 subsets total for comparison).
+    For each subset, sample the number of features from a Gaussian distribution
+    centered at width/2 (384 for d_model=768), then randomly select that many features.
+    Train one probe per random subset (20 subsets total for comparison).
 
     Args:
         activations: (n_examples, 768) activation matrix
         labels: (n_examples,) label array
-        n_features: Number of random features to sample (default: 38 = width/20)
-        n_subsets: Number of random subsets to try (default: 5)
+        n_features: Ignored (kept for backward compatibility)
+        n_subsets: Number of random subsets to try (default: 20)
         logger: Logger instance
 
     Returns:
@@ -1294,21 +1295,32 @@ def apply_random_and_probe(
         - mutual_information: list of MI scores (one per subset)
         - accuracy: list of accuracy scores (one per subset)
         - f1_score: list of F1 scores (one per subset)
+        - n_features_used: list of number of features used per subset
     """
     # Standardize activations first (mean=0, std=1 per feature)
     scaler = StandardScaler()
     standardized_activations = scaler.fit_transform(activations)
 
     d_model = standardized_activations.shape[1]  # Should be 768
+    mean_features = d_model // 2  # 384 for d_model=768
+    std_features = 50  # Standard deviation for Gaussian sampling
 
     mi_scores = []
     accuracy_scores = []
     f1_scores = []
+    n_features_list = []
 
     for subset_idx in range(n_subsets):
-        # Randomly sample features from standardized activations
+        # Sample number of features from Gaussian distribution
         np.random.seed(42 + subset_idx)  # Reproducible
-        selected_features = np.random.choice(d_model, size=n_features, replace=False)
+        n_features_sample = int(np.random.normal(mean_features, std_features))
+
+        # Clip to valid range [10, d_model]
+        n_features_sample = max(10, min(d_model, n_features_sample))
+        n_features_list.append(n_features_sample)
+
+        # Randomly sample features from standardized activations
+        selected_features = np.random.choice(d_model, size=n_features_sample, replace=False)
         random_activations = standardized_activations[:, selected_features]
 
         # Train logistic regression probe with more iterations
@@ -1328,7 +1340,8 @@ def apply_random_and_probe(
         f1_scores.append(f1)
 
     if logger:
-        logger.info(f"  Random baseline ({n_subsets} subsets of {n_features} features):")
+        logger.info(f"  Random baseline ({n_subsets} subsets, Gaussian features ~ N({mean_features}, {std_features})):")
+        logger.info(f"    Feature counts: min={min(n_features_list)}, max={max(n_features_list)}, mean={np.mean(n_features_list):.1f}")
         logger.info(f"    Mutual Information: {np.mean(mi_scores):.4f} ± {np.std(mi_scores):.4f}")
         logger.info(f"    Accuracy: {np.mean(accuracy_scores):.4f} ± {np.std(accuracy_scores):.4f}")
         logger.info(f"    F1 Score: {np.mean(f1_scores):.4f} ± {np.std(f1_scores):.4f}")
@@ -1336,7 +1349,8 @@ def apply_random_and_probe(
     return {
         'mutual_information': mi_scores,
         'accuracy': accuracy_scores,
-        'f1_score': f1_scores
+        'f1_score': f1_scores,
+        'n_features_used': n_features_list
     }
 
 
@@ -1530,18 +1544,17 @@ def main():
                 'f1_score': pos_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (5 subsets of 38 features)
-        logger.info("\n  Method: Random baseline (5 subsets of 38 features)")
+        # Method 2: Random baseline (20 subsets, Gaussian feature sampling)
+        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(384, 50))")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
-            n_features=38,  # width/20
-            n_subsets=5,
+            n_subsets=20,
             logger=logger
         )
 
         # Add random baseline results
-        for run in range(5):
+        for run in range(20):
             all_results.append({
                 'layer': layer,
                 'task': 'pos',
@@ -1603,7 +1616,7 @@ def main():
         pos_random_df,
         'mutual_information',
         'Mutual Information',
-        'Part of Speech (Random 38): Mutual Information Across Layers',
+        'Part of Speech (Random Gaussian): Mutual Information Across Layers',
         plots_dir / 'pos_random_mutual_information.png',
         logger
     )
@@ -1612,7 +1625,7 @@ def main():
         pos_random_df,
         'accuracy',
         'Accuracy',
-        'Part of Speech (Random 38): Classification Accuracy Across Layers',
+        'Part of Speech (Random Gaussian): Classification Accuracy Across Layers',
         plots_dir / 'pos_random_accuracy.png',
         logger
     )
@@ -1634,7 +1647,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (38 features):")
+    logger.info("\nPart of Speech Task - Random Baseline (20 subsets, Gaussian ~ N(384, 50)):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
