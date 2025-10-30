@@ -1136,6 +1136,59 @@ def extract_activations(
     return activations, labels
 
 
+def log_diagnostics(
+    activations: np.ndarray,
+    labels: np.ndarray,
+    task_name: str,
+    logger: logging.Logger = None
+):
+    """
+    Log diagnostic information about activations and labels.
+
+    Args:
+        activations: (n_examples, d_model) activation matrix
+        labels: (n_examples,) label array
+        task_name: Name of the task for logging
+        logger: Logger instance
+    """
+    if not logger:
+        return
+
+    logger.info(f"  [DIAGNOSTICS] {task_name}")
+    logger.info(f"    Activation shape: {activations.shape}")
+    logger.info(f"    Label shape: {labels.shape}")
+
+    # Check activation statistics
+    logger.info(f"    Activation mean: {activations.mean():.6f}")
+    logger.info(f"    Activation std: {activations.std():.6f}")
+    logger.info(f"    Activation min: {activations.min():.6f}")
+    logger.info(f"    Activation max: {activations.max():.6f}")
+
+    # Check for constant/near-constant activations
+    activation_variance = activations.var(axis=0)
+    zero_variance_dims = (activation_variance < 1e-10).sum()
+    logger.info(f"    Dimensions with zero variance: {zero_variance_dims}/{activations.shape[1]}")
+
+    # Check label distribution
+    unique_labels, counts = np.unique(labels, return_counts=True)
+    logger.info(f"    Label distribution: {dict(zip(unique_labels, counts))}")
+
+    # Check if activations differ between classes
+    if len(unique_labels) == 2:  # Binary classification
+        class0_acts = activations[labels == unique_labels[0]]
+        class1_acts = activations[labels == unique_labels[1]]
+
+        mean_diff = np.abs(class0_acts.mean(axis=0) - class1_acts.mean(axis=0)).mean()
+        logger.info(f"    Mean activation difference between classes: {mean_diff:.6f}")
+
+        # Check if classes are separable at all
+        total_var = activations.var()
+        between_class_var = ((class0_acts.mean() - class1_acts.mean()) ** 2) / 2
+        logger.info(f"    Total variance: {total_var:.6f}")
+        logger.info(f"    Between-class variance: {between_class_var:.6f}")
+        logger.info(f"    Separability ratio: {between_class_var / (total_var + 1e-10):.6f}")
+
+
 def apply_pca_and_probe(
     activations: np.ndarray,
     labels: np.ndarray,
@@ -1180,8 +1233,8 @@ def apply_pca_and_probe(
     f1_scores = []
 
     for run in range(n_runs):
-        # Train logistic regression probe
-        probe = LogisticRegression(max_iter=1000, random_state=42 + run)
+        # Train logistic regression probe with increased iterations
+        probe = LogisticRegression(max_iter=2000, random_state=42 + run)
         probe.fit(reduced_activations, labels)
 
         # Get predictions
@@ -1214,21 +1267,21 @@ def apply_pca_and_probe(
 def apply_random_and_probe(
     activations: np.ndarray,
     labels: np.ndarray,
-    n_features: int = 384,
-    n_subsets: int = 3,
+    n_features: int = 38,
+    n_subsets: int = 5,
     logger: logging.Logger = None
 ) -> Dict:
     """
     Sample random feature subsets and train probes (baseline comparison).
 
     Instead of PCA, randomly sample n_features dimensions from the 768-dim activations.
-    Train one probe per random subset (3 subsets total for comparison).
+    Train one probe per random subset (5 subsets total for comparison).
 
     Args:
         activations: (n_examples, 768) activation matrix
         labels: (n_examples,) label array
-        n_features: Number of random features to sample (default: 384 = width/2)
-        n_subsets: Number of random subsets to try (default: 3)
+        n_features: Number of random features to sample (default: 38 = width/20)
+        n_subsets: Number of random subsets to try (default: 5)
         logger: Logger instance
 
     Returns:
@@ -1249,8 +1302,8 @@ def apply_random_and_probe(
         selected_features = np.random.choice(d_model, size=n_features, replace=False)
         random_activations = activations[:, selected_features]
 
-        # Train logistic regression probe
-        probe = LogisticRegression(max_iter=1000, random_state=42 + subset_idx)
+        # Train logistic regression probe with more iterations
+        probe = LogisticRegression(max_iter=2000, random_state=42 + subset_idx)
         probe.fit(random_activations, labels)
 
         # Get predictions
@@ -1438,6 +1491,9 @@ def main():
             model, plurality_data, layer, logger
         )
 
+        # Log diagnostics for plurality task
+        log_diagnostics(plurality_acts, plurality_labels, "Plurality", logger)
+
         # Method 1: PCA (top 10 components)
         logger.info("\n  Method: PCA (top 10 components)")
         plurality_pca_results = apply_pca_and_probe(
@@ -1460,18 +1516,18 @@ def main():
                 'f1_score': plurality_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (3 subsets of 384 features)
-        logger.info("\n  Method: Random baseline (3 subsets of 384 features)")
+        # Method 2: Random baseline (5 subsets of 38 features)
+        logger.info("\n  Method: Random baseline (5 subsets of 38 features)")
         plurality_random_results = apply_random_and_probe(
             plurality_acts,
             plurality_labels,
-            n_features=384,  # width/2
-            n_subsets=3,
+            n_features=38,  # width/20
+            n_subsets=5,
             logger=logger
         )
 
         # Add random baseline results
-        for run in range(3):
+        for run in range(5):
             all_results.append({
                 'layer': layer,
                 'task': 'plurality',
@@ -1489,6 +1545,9 @@ def main():
         pos_acts, pos_labels = extract_activations(
             model, pos_data, layer, logger
         )
+
+        # Log diagnostics for POS task
+        log_diagnostics(pos_acts, pos_labels, "Part of Speech", logger)
 
         # Method 1: PCA (top 10 components)
         logger.info("\n  Method: PCA (top 10 components)")
@@ -1512,18 +1571,18 @@ def main():
                 'f1_score': pos_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (3 subsets of 384 features)
-        logger.info("\n  Method: Random baseline (3 subsets of 384 features)")
+        # Method 2: Random baseline (5 subsets of 38 features)
+        logger.info("\n  Method: Random baseline (5 subsets of 38 features)")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
-            n_features=384,  # width/2
-            n_subsets=3,
+            n_features=38,  # width/20
+            n_subsets=5,
             logger=logger
         )
 
         # Add random baseline results
-        for run in range(3):
+        for run in range(5):
             all_results.append({
                 'layer': layer,
                 'task': 'pos',
