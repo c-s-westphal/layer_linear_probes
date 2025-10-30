@@ -1267,7 +1267,7 @@ def apply_pca_and_probe(
 def apply_random_and_probe(
     activations: np.ndarray,
     labels: np.ndarray,
-    n_features: int = 38,
+    n_features: int = 384,
     n_subsets: int = 5,
     logger: logging.Logger = None
 ) -> Dict:
@@ -1516,12 +1516,12 @@ def main():
                 'f1_score': plurality_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (5 subsets of 38 features)
-        logger.info("\n  Method: Random baseline (5 subsets of 38 features)")
+        # Method 2: Random baseline (5 subsets of 384 features)
+        logger.info("\n  Method: Random baseline (5 subsets of 384 features)")
         plurality_random_results = apply_random_and_probe(
             plurality_acts,
             plurality_labels,
-            n_features=38,  # width/20
+            n_features=384,  # width/2
             n_subsets=5,
             logger=logger
         )
@@ -1571,12 +1571,12 @@ def main():
                 'f1_score': pos_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (5 subsets of 38 features)
-        logger.info("\n  Method: Random baseline (5 subsets of 38 features)")
+        # Method 2: Random baseline (5 subsets of 384 features)
+        logger.info("\n  Method: Random baseline (5 subsets of 384 features)")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
-            n_features=38,  # width/20
+            n_features=384,  # width/2
             n_subsets=5,
             logger=logger
         )
@@ -1713,7 +1713,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPlurality Task - Random Baseline (38 features):")
+    logger.info("\nPlurality Task - Random Baseline (384 features):")
     for layer in range(1, 12):
         layer_df = plurality_random_df[plurality_random_df['layer'] == layer]
         logger.info(
@@ -1733,7 +1733,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (38 features):")
+    logger.info("\nPart of Speech Task - Random Baseline (384 features):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
