@@ -1713,7 +1713,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPlurality Task - Random Baseline (384 features):")
+    logger.info("\nPlurality Task - Random Baseline (38 features):")
     for layer in range(1, 12):
         layer_df = plurality_random_df[plurality_random_df['layer'] == layer]
         logger.info(
@@ -1733,7 +1733,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (384 features):")
+    logger.info("\nPart of Speech Task - Random Baseline (38 features):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
