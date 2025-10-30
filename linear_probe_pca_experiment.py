@@ -2538,8 +2538,8 @@ def apply_random_and_probe(
     standardized_activations = scaler.fit_transform(activations)
 
     d_model = standardized_activations.shape[1]  # Should be 768
-    mean_features = d_model // 2  # 384 for d_model=768
-    std_features = 50  # Standard deviation for Gaussian sampling
+    mean_features = 600  # Center Gaussian at 600 features
+    std_features = 75  # Standard deviation for Gaussian sampling
 
     mi_scores = []
     accuracy_scores = []
@@ -2793,7 +2793,7 @@ def main():
             })
 
         # Method 2: Random baseline (20 subsets, Gaussian feature sampling)
-        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(384, 50))")
+        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(600, 75))")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
@@ -2845,7 +2845,7 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(384, 50))")
+        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(600, 75))")
         verb_tense_random_results = apply_random_and_probe(
             verb_tense_acts,
             verb_tense_labels,
@@ -2896,7 +2896,7 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(384, 50))")
+        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(600, 75))")
         sentiment_random_results = apply_random_and_probe(
             sentiment_acts,
             sentiment_labels,
@@ -3083,7 +3083,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (20 subsets, Gaussian ~ N(384, 50)):")
+    logger.info("\nPart of Speech Task - Random Baseline (20 subsets, Gaussian ~ N(600, 75)):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
@@ -3103,7 +3103,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nVerb Tense Task - Random Baseline (20 subsets, Gaussian ~ N(384, 50)):")
+    logger.info("\nVerb Tense Task - Random Baseline (20 subsets, Gaussian ~ N(600, 75)):")
     for layer in range(1, 12):
         layer_df = verb_tense_random_df[verb_tense_random_df['layer'] == layer]
         logger.info(
@@ -3123,7 +3123,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nSentiment Task - Random Baseline (20 subsets, Gaussian ~ N(384, 50)):")
+    logger.info("\nSentiment Task - Random Baseline (20 subsets, Gaussian ~ N(600, 75)):")
     for layer in range(1, 12):
         layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
