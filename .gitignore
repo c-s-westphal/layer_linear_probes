@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Output directories
+outputs/
+output_dir/
+results/
+experiments/
+
+# Logs
+*.log
+
+# Model checkpoints and caches
+*.pt
+*.pth
+*.bin
+*.safetensors
+checkpoints/
+models/
+cache/
+
+# Data
+data/
+datasets/
+*.csv
+!raw_results.csv  # Keep example results if any
+
+# Plots (optional - uncomment if you don't want to track plots)
+# *.png
+# *.pdf
+# *.jpg
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
