@@ -30,6 +30,7 @@ import torch
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, mutual_info_score
+from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from src.model import ModelLoader
@@ -1214,9 +1215,13 @@ def apply_pca_and_probe(
         - accuracy: list of accuracy scores (one per run)
         - f1_score: list of F1 scores (one per run)
     """
-    # Fit PCA
+    # Standardize activations (mean=0, std=1 per feature)
+    scaler = StandardScaler()
+    standardized_activations = scaler.fit_transform(activations)
+
+    # Fit PCA on standardized activations
     pca = PCA(n_components=n_components)
-    reduced_activations = pca.fit_transform(activations)
+    reduced_activations = pca.fit_transform(standardized_activations)
 
     # Log explained variance
     explained_var = pca.explained_variance_ratio_
@@ -1280,7 +1285,7 @@ def apply_random_and_probe(
     Args:
         activations: (n_examples, 768) activation matrix
         labels: (n_examples,) label array
-        n_features: Number of random features to sample (default: 38 = width/20)
+        n_features: Number of random features to sample (default: 384 = width/2)
         n_subsets: Number of random subsets to try (default: 5)
         logger: Logger instance
 
@@ -1290,17 +1295,21 @@ def apply_random_and_probe(
         - accuracy: list of accuracy scores (one per subset)
         - f1_score: list of F1 scores (one per subset)
     """
-    d_model = activations.shape[1]  # Should be 768
+    # Standardize activations first (mean=0, std=1 per feature)
+    scaler = StandardScaler()
+    standardized_activations = scaler.fit_transform(activations)
+
+    d_model = standardized_activations.shape[1]  # Should be 768
 
     mi_scores = []
     accuracy_scores = []
     f1_scores = []
 
     for subset_idx in range(n_subsets):
-        # Randomly sample features
+        # Randomly sample features from standardized activations
         np.random.seed(42 + subset_idx)  # Reproducible
         selected_features = np.random.choice(d_model, size=n_features, replace=False)
-        random_activations = activations[:, selected_features]
+        random_activations = standardized_activations[:, selected_features]
 
         # Train logistic regression probe with more iterations
         probe = LogisticRegression(max_iter=2000, random_state=42 + subset_idx)
