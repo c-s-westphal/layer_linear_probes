@@ -79,7 +79,7 @@ outputs/linear_probe_pca/
 
 ## Experiment Pipeline
 
-For each of 12 layers (0-11):
+For each of 11 layers (1-11, skipping layer 0 input embeddings):
 
 1. **Extract Activations** (768-dim)
    - Process all examples through GPT-2
@@ -115,7 +115,7 @@ For each of 12 layers (0-11):
 
 Based on probing literature, typical findings:
 
-- **Early layers (0-3)**: Low accuracy/MI (surface features only)
+- **Early layers (1-3)**: Low accuracy/MI (surface features only)
 - **Middle layers (4-8)**: Peak accuracy/MI (syntactic and semantic features)
 - **Late layers (9-11)**: Variable (task-specific, may decrease)
 

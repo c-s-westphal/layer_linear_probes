@@ -10,7 +10,7 @@ Tasks:
 1. Plurality (Binary): Predict if noun is singular or plural
 2. Part of Speech (4-class): Predict POS tag (noun/verb/adjective/adverb)
 
-For each layer:
+For each layer (1-11, skipping layer 0 input embeddings):
 - Extract 768-dim activations at target token positions
 - Apply PCA to reduce to 10 principal components
 - Train 3 LogisticRegression probes (for confidence intervals)
@@ -1330,7 +1330,7 @@ def main():
 
     model_loader = ModelLoader(
         model_name="gpt2-small",
-        layers=list(range(12)),  # Layers 0-11
+        layers=list(range(1, 12)),  # Layers 1-11 (skip layer 0 - input embeddings)
         device=device,
         logger=logger
     )
@@ -1355,10 +1355,10 @@ def main():
     logger.info(f"  Adjectives: {sum(1 for x in pos_data if x['label'] == 2)}")
     logger.info(f"  Adverbs: {sum(1 for x in pos_data if x['label'] == 3)}")
 
-    # Process each layer
+    # Process each layer (skip layer 0 - input embeddings)
     all_results = []
 
-    for layer in range(12):
+    for layer in range(1, 12):
         logger.info(f"\n{'='*80}")
         logger.info(f"LAYER {layer}")
         logger.info(f"{'='*80}")
@@ -1484,7 +1484,7 @@ def main():
     logger.info("="*80)
 
     logger.info("\nPlurality Task:")
-    for layer in range(12):
+    for layer in range(1, 12):
         layer_df = plurality_df[plurality_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -1494,7 +1494,7 @@ def main():
         )
 
     logger.info("\nPart of Speech Task:")
-    for layer in range(12):
+    for layer in range(1, 12):
         layer_df = pos_df[pos_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
