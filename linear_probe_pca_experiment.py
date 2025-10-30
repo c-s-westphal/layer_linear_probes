@@ -2980,7 +2980,93 @@ def main():
         logger
     )
 
-    logger.info(f"\nGenerated 4 plots in: {plots_dir} (POS task only - 2 PCA + 2 Random baseline)")
+    # Verb Tense plots
+    verb_tense_df = results_df[results_df['task'] == 'verb_tense']
+    verb_tense_pca_df = verb_tense_df[verb_tense_df['method'] == 'pca']
+    verb_tense_random_df = verb_tense_df[verb_tense_df['method'] == 'random']
+
+    logger.info("\nVerb Tense - PCA method:")
+    create_bar_plot(
+        verb_tense_pca_df,
+        'mutual_information',
+        'Mutual Information',
+        'Verb Tense (PCA): Mutual Information Across Layers',
+        plots_dir / 'verb_tense_pca_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        verb_tense_pca_df,
+        'accuracy',
+        'Accuracy',
+        'Verb Tense (PCA): Classification Accuracy Across Layers',
+        plots_dir / 'verb_tense_pca_accuracy.png',
+        logger
+    )
+
+    logger.info("\nVerb Tense - Random baseline:")
+    create_bar_plot(
+        verb_tense_random_df,
+        'mutual_information',
+        'Mutual Information',
+        'Verb Tense (Random Gaussian): Mutual Information Across Layers',
+        plots_dir / 'verb_tense_random_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        verb_tense_random_df,
+        'accuracy',
+        'Accuracy',
+        'Verb Tense (Random Gaussian): Classification Accuracy Across Layers',
+        plots_dir / 'verb_tense_random_accuracy.png',
+        logger
+    )
+
+    # Sentiment plots
+    sentiment_df = results_df[results_df['task'] == 'sentiment']
+    sentiment_pca_df = sentiment_df[sentiment_df['method'] == 'pca']
+    sentiment_random_df = sentiment_df[sentiment_df['method'] == 'random']
+
+    logger.info("\nSentiment - PCA method:")
+    create_bar_plot(
+        sentiment_pca_df,
+        'mutual_information',
+        'Mutual Information',
+        'Sentiment (PCA): Mutual Information Across Layers',
+        plots_dir / 'sentiment_pca_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        sentiment_pca_df,
+        'accuracy',
+        'Accuracy',
+        'Sentiment (PCA): Classification Accuracy Across Layers',
+        plots_dir / 'sentiment_pca_accuracy.png',
+        logger
+    )
+
+    logger.info("\nSentiment - Random baseline:")
+    create_bar_plot(
+        sentiment_random_df,
+        'mutual_information',
+        'Mutual Information',
+        'Sentiment (Random Gaussian): Mutual Information Across Layers',
+        plots_dir / 'sentiment_random_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        sentiment_random_df,
+        'accuracy',
+        'Accuracy',
+        'Sentiment (Random Gaussian): Classification Accuracy Across Layers',
+        plots_dir / 'sentiment_random_accuracy.png',
+        logger
+    )
+
+    logger.info(f"\nGenerated 12 plots in: {plots_dir} (3 tasks × 2 methods × 2 metrics)")
 
     # Summary statistics
     logger.info(f"\n{'='*80}")
@@ -3000,6 +3086,46 @@ def main():
     logger.info("\nPart of Speech Task - Random Baseline (20 subsets, Gaussian ~ N(384, 50)):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nVerb Tense Task - PCA (10 components):")
+    for layer in range(1, 12):
+        layer_df = verb_tense_pca_df[verb_tense_pca_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nVerb Tense Task - Random Baseline (20 subsets, Gaussian ~ N(384, 50)):")
+    for layer in range(1, 12):
+        layer_df = verb_tense_random_df[verb_tense_random_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nSentiment Task - PCA (10 components):")
+    for layer in range(1, 12):
+        layer_df = sentiment_pca_df[sentiment_pca_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nSentiment Task - Random Baseline (20 subsets, Gaussian ~ N(384, 50)):")
+    for layer in range(1, 12):
+        layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
             f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
