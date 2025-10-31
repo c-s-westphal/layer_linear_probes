@@ -2264,7 +2264,8 @@ def extract_activations(
     model,
     examples: List[Dict],
     layer: int,
-    logger: logging.Logger
+    logger: logging.Logger,
+    hook: str = "resid_post"
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Extract activations at target token positions for all examples.
@@ -2274,13 +2275,14 @@ def extract_activations(
         examples: List of examples with 'text', 'target_word', 'label'
         layer: Layer index to extract from
         logger: Logger instance
+        hook: Hook point type (e.g., "resid_post", "resid_pre")
 
     Returns:
         Tuple of (activations, labels) as numpy arrays
-        activations: (n_examples, 768)
+        activations: (n_examples, d_model)
         labels: (n_examples,)
     """
-    hook_name = f"blocks.{layer}.hook_resid_post"
+    hook_name = f"blocks.{layer}.hook_{hook}"
     activations_list = []
     labels_list = []
     token_positions = []  # Track all token positions
@@ -2637,7 +2639,13 @@ def create_bar_plot(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Linear probe PCA experiment on GPT-2 Small"
+        description="Linear probe PCA experiment on transformer models"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to YAML config file (optional)"
     )
     parser.add_argument(
         "--output_dir",
@@ -2663,10 +2671,65 @@ def main():
         default=42,
         help="Random seed (default: 42)"
     )
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default="gpt2-small",
+        help="Model name (default: gpt2-small)"
+    )
+    parser.add_argument(
+        "--layers",
+        type=str,
+        default="1-11",
+        help="Layers to probe (format: '1-11' or '1,5,10,15')"
+    )
+    parser.add_argument(
+        "--hook",
+        type=str,
+        default="resid_post",
+        help="Hook point type (default: resid_post)"
+    )
     args = parser.parse_args()
 
+    # Load config if provided
+    config = {}
+    if args.config:
+        import yaml
+        with open(args.config, 'r') as f:
+            config = yaml.safe_load(f)
+
+    # Override defaults with config values (config takes precedence over CLI defaults)
+    model_name = config.get("model_name", args.model_name)
+    hook = config.get("hook", args.hook)
+    output_dir_str = config.get("output_dir", args.output_dir)
+    n_components = config.get("n_components", args.n_components)
+    n_runs = config.get("n_runs", args.n_runs)
+    seed = config.get("seed", args.seed)
+
+    # Parse layers
+    if "layers" in config:
+        layers_config = config["layers"]
+        if isinstance(layers_config, list):
+            layers = layers_config
+        else:
+            # Handle string format like "1-11"
+            if "-" in str(layers_config):
+                start, end = map(int, str(layers_config).split("-"))
+                layers = list(range(start, end + 1))
+            else:
+                layers = [int(layers_config)]
+    else:
+        # Parse from CLI arg
+        if "-" in args.layers:
+            start, end = map(int, args.layers.split("-"))
+            layers = list(range(start, end + 1))
+        elif "," in args.layers:
+            layers = [int(x.strip()) for x in args.layers.split(",")]
+        else:
+            layers = [int(args.layers)]
+
     # Setup output directory
-    output_dir = Path(args.output_dir)
+    output_dir = Path(output_dir_str)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logger = setup_logging(output_dir)
@@ -2674,17 +2737,26 @@ def main():
     logger.info("="*80)
     logger.info("LINEAR PROBE PCA EXPERIMENT")
     logger.info("="*80)
+    if args.config:
+        logger.info(f"Config file: {args.config}")
+    logger.info(f"Model: {model_name}")
+    logger.info(f"Hook point: {hook}")
+    logger.info(f"Layers: {layers}")
     logger.info(f"Output directory: {output_dir}")
-    logger.info(f"PCA components: {args.n_components}")
-    logger.info(f"Probe runs: {args.n_runs}")
-    logger.info(f"Random seed: {args.seed}")
+    logger.info(f"PCA components: {n_components}")
+    logger.info(f"Probe runs: {n_runs}")
+    logger.info(f"Random seed: {seed}")
 
     # Set random seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
     # Set device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device_config = config.get("device", "auto")
+    if device_config == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(device_config)
     logger.info(f"Using device: {device}")
 
     # Load model
@@ -2693,8 +2765,9 @@ def main():
     logger.info("="*80)
 
     model_loader = ModelLoader(
-        model_name="gpt2-small",
-        layers=list(range(1, 12)),  # Layers 1-11 (skip layer 0 - input embeddings)
+        model_name=model_name,
+        hook=hook,
+        layers=layers,
         device=device,
         logger=logger
     )
@@ -2739,10 +2812,10 @@ def main():
     logger.info(f"  Negative: {sum(1 for x in sentiment_data if x['label'] == 1)}")
     logger.info(f"  Neutral: {sum(1 for x in sentiment_data if x['label'] == 2)}")
 
-    # Process each layer (skip layer 0 - input embeddings)
+    # Process each layer
     all_results = []
 
-    for layer in range(1, 12):
+    for layer in layers:
         logger.info(f"\n{'='*80}")
         logger.info(f"LAYER {layer}")
         logger.info(f"{'='*80}")
@@ -2760,7 +2833,7 @@ def main():
         logger.info("-" * 80)
 
         pos_acts, pos_labels = extract_activations(
-            model, pos_data, layer, logger
+            model, pos_data, layer, logger, hook
         )
 
         # Log diagnostics for POS task
@@ -2771,8 +2844,8 @@ def main():
         pos_pca_results = apply_pca_and_probe(
             pos_acts,
             pos_labels,
-            n_components=args.n_components,
-            n_runs=args.n_runs,
+            n_components=n_components,
+            n_runs=n_runs,
             logger=logger
         )
 
@@ -2814,7 +2887,7 @@ def main():
         logger.info("-" * 80)
 
         ner_acts, ner_labels = extract_activations(
-            model, ner_data, layer, logger
+            model, ner_data, layer, logger, hook
         )
 
         log_diagnostics(ner_acts, ner_labels, "NER (Named Entity Recognition)", logger)
@@ -2824,8 +2897,8 @@ def main():
         ner_pca_results = apply_pca_and_probe(
             ner_acts,
             ner_labels,
-            n_components=args.n_components,
-            n_runs=args.n_runs,
+            n_components=n_components,
+            n_runs=n_runs,
             logger=logger
         )
 
@@ -2865,7 +2938,7 @@ def main():
         logger.info("-" * 80)
 
         word_length_acts, word_length_labels = extract_activations(
-            model, word_length_data, layer, logger
+            model, word_length_data, layer, logger, hook
         )
 
         log_diagnostics(word_length_acts, word_length_labels, "Word Length", logger)
@@ -2875,8 +2948,8 @@ def main():
         word_length_pca_results = apply_pca_and_probe(
             word_length_acts,
             word_length_labels,
-            n_components=args.n_components,
-            n_runs=args.n_runs,
+            n_components=n_components,
+            n_runs=n_runs,
             logger=logger
         )
 
@@ -2916,7 +2989,7 @@ def main():
         logger.info("-" * 80)
 
         sentiment_acts, sentiment_labels = extract_activations(
-            model, sentiment_data, layer, logger
+            model, sentiment_data, layer, logger, hook
         )
 
         log_diagnostics(sentiment_acts, sentiment_labels, "Sentiment", logger)
@@ -2926,8 +2999,8 @@ def main():
         sentiment_pca_results = apply_pca_and_probe(
             sentiment_acts,
             sentiment_labels,
-            n_components=args.n_components,
-            n_runs=args.n_runs,
+            n_components=n_components,
+            n_runs=n_runs,
             logger=logger
         )
 
@@ -3164,7 +3237,7 @@ def main():
     logger.info("="*80)
 
     logger.info("\nPart of Speech Task - PCA (10 components):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = pos_pca_df[pos_pca_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -3174,7 +3247,7 @@ def main():
         )
 
     logger.info("\nPart of Speech Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -3184,7 +3257,7 @@ def main():
         )
 
     logger.info("\nNER Task - PCA (10 components):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = ner_pca_df[ner_pca_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -3194,7 +3267,7 @@ def main():
         )
 
     logger.info("\nNER Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = ner_random_df[ner_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -3204,7 +3277,7 @@ def main():
         )
 
     logger.info("\nWord Length Task - PCA (10 components):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = word_length_pca_df[word_length_pca_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -3214,7 +3287,7 @@ def main():
         )
 
     logger.info("\nWord Length Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = word_length_random_df[word_length_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -3224,7 +3297,7 @@ def main():
         )
 
     logger.info("\nSentiment Task - PCA (10 components):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = sentiment_pca_df[sentiment_pca_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
@@ -3234,7 +3307,7 @@ def main():
         )
 
     logger.info("\nSentiment Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
-    for layer in range(1, 12):
+    for layer in layers:
         layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
