@@ -2710,9 +2710,16 @@ def main():
     # plurality_data = create_plurality_dataset()
     pos_data = create_pos_dataset()
     # Import diverse datasets with varied sentence structures
-    from fixed_datasets import create_ner_dataset_diverse, create_word_length_dataset_diverse
+    from fixed_datasets import (
+        create_ner_dataset_diverse,
+        create_word_length_dataset_diverse,
+        create_verb_tense_dataset_diverse,
+        create_sentiment_dataset_diverse
+    )
     ner_data = create_ner_dataset_diverse()
     word_length_data = create_word_length_dataset_diverse()
+    verb_tense_data = create_verb_tense_dataset_diverse()
+    sentiment_data = create_sentiment_dataset_diverse()
 
     logger.info(f"POS dataset: {len(pos_data)} examples")
     logger.info(f"  Nouns: {sum(1 for x in pos_data if x['label'] == 0)}")
@@ -2728,6 +2735,16 @@ def main():
     logger.info(f"  Short (3-5 letters): {sum(1 for x in word_length_data if x['label'] == 0)}")
     logger.info(f"  Medium (6-8 letters): {sum(1 for x in word_length_data if x['label'] == 1)}")
     logger.info(f"  Long (9+ letters): {sum(1 for x in word_length_data if x['label'] == 2)}")
+
+    logger.info(f"Verb Tense dataset: {len(verb_tense_data)} examples")
+    logger.info(f"  Past: {sum(1 for x in verb_tense_data if x['label'] == 0)}")
+    logger.info(f"  Present: {sum(1 for x in verb_tense_data if x['label'] == 1)}")
+    logger.info(f"  Future: {sum(1 for x in verb_tense_data if x['label'] == 2)}")
+
+    logger.info(f"Sentiment dataset: {len(sentiment_data)} examples")
+    logger.info(f"  Positive: {sum(1 for x in sentiment_data if x['label'] == 0)}")
+    logger.info(f"  Negative: {sum(1 for x in sentiment_data if x['label'] == 1)}")
+    logger.info(f"  Neutral: {sum(1 for x in sentiment_data if x['label'] == 2)}")
 
     # Process each layer (skip layer 0 - input embeddings)
     all_results = []
@@ -2901,6 +2918,108 @@ def main():
                 'f1_score': word_length_random_results['f1_score'][run]
             })
 
+        # Process Verb Tense task
+        logger.info("\nTask: Verb Tense (3-class Classification)")
+        logger.info("-" * 80)
+
+        verb_tense_acts, verb_tense_labels = extract_activations(
+            model, verb_tense_data, layer, logger
+        )
+
+        log_diagnostics(verb_tense_acts, verb_tense_labels, "Verb Tense", logger)
+
+        # Method 1: PCA
+        logger.info("\n  Method: PCA (top 10 components)")
+        verb_tense_pca_results = apply_pca_and_probe(
+            verb_tense_acts,
+            verb_tense_labels,
+            n_components=args.n_components,
+            n_runs=args.n_runs,
+            logger=logger
+        )
+
+        for run in range(args.n_runs):
+            all_results.append({
+                'layer': layer,
+                'task': 'verb_tense',
+                'method': 'pca',
+                'run': run,
+                'mutual_information': verb_tense_pca_results['mutual_information'][run],
+                'accuracy': verb_tense_pca_results['accuracy'][run],
+                'f1_score': verb_tense_pca_results['f1_score'][run]
+            })
+
+        # Method 2: Random baseline
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(384, 50))")
+        verb_tense_random_results = apply_random_and_probe(
+            verb_tense_acts,
+            verb_tense_labels,
+            n_subsets=3,
+            logger=logger
+        )
+
+        for run in range(3):
+            all_results.append({
+                'layer': layer,
+                'task': 'verb_tense',
+                'method': 'random',
+                'run': run,
+                'mutual_information': verb_tense_random_results['mutual_information'][run],
+                'accuracy': verb_tense_random_results['accuracy'][run],
+                'f1_score': verb_tense_random_results['f1_score'][run]
+            })
+
+        # Process Sentiment task
+        logger.info("\nTask: Sentiment (3-class Classification)")
+        logger.info("-" * 80)
+
+        sentiment_acts, sentiment_labels = extract_activations(
+            model, sentiment_data, layer, logger
+        )
+
+        log_diagnostics(sentiment_acts, sentiment_labels, "Sentiment", logger)
+
+        # Method 1: PCA
+        logger.info("\n  Method: PCA (top 10 components)")
+        sentiment_pca_results = apply_pca_and_probe(
+            sentiment_acts,
+            sentiment_labels,
+            n_components=args.n_components,
+            n_runs=args.n_runs,
+            logger=logger
+        )
+
+        for run in range(args.n_runs):
+            all_results.append({
+                'layer': layer,
+                'task': 'sentiment',
+                'method': 'pca',
+                'run': run,
+                'mutual_information': sentiment_pca_results['mutual_information'][run],
+                'accuracy': sentiment_pca_results['accuracy'][run],
+                'f1_score': sentiment_pca_results['f1_score'][run]
+            })
+
+        # Method 2: Random baseline
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(384, 50))")
+        sentiment_random_results = apply_random_and_probe(
+            sentiment_acts,
+            sentiment_labels,
+            n_subsets=3,
+            logger=logger
+        )
+
+        for run in range(3):
+            all_results.append({
+                'layer': layer,
+                'task': 'sentiment',
+                'method': 'random',
+                'run': run,
+                'mutual_information': sentiment_random_results['mutual_information'][run],
+                'accuracy': sentiment_random_results['accuracy'][run],
+                'f1_score': sentiment_random_results['f1_score'][run]
+            })
+
     # Create results dataframe
     results_df = pd.DataFrame(all_results)
 
@@ -3052,7 +3171,93 @@ def main():
         logger
     )
 
-    logger.info(f"\nGenerated 12 plots in: {plots_dir} (3 tasks × 2 methods × 2 metrics)")
+    # Verb Tense plots
+    verb_tense_df = results_df[results_df['task'] == 'verb_tense']
+    verb_tense_pca_df = verb_tense_df[verb_tense_df['method'] == 'pca']
+    verb_tense_random_df = verb_tense_df[verb_tense_df['method'] == 'random']
+
+    logger.info("\nVerb Tense - PCA method:")
+    create_bar_plot(
+        verb_tense_pca_df,
+        'mutual_information',
+        'Mutual Information',
+        'Verb Tense (PCA): Mutual Information Across Layers',
+        plots_dir / 'verb_tense_pca_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        verb_tense_pca_df,
+        'accuracy',
+        'Accuracy',
+        'Verb Tense (PCA): Classification Accuracy Across Layers',
+        plots_dir / 'verb_tense_pca_accuracy.png',
+        logger
+    )
+
+    logger.info("\nVerb Tense - Random baseline:")
+    create_bar_plot(
+        verb_tense_random_df,
+        'mutual_information',
+        'Mutual Information',
+        'Verb Tense (Random Gaussian): Mutual Information Across Layers',
+        plots_dir / 'verb_tense_random_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        verb_tense_random_df,
+        'accuracy',
+        'Accuracy',
+        'Verb Tense (Random Gaussian): Classification Accuracy Across Layers',
+        plots_dir / 'verb_tense_random_accuracy.png',
+        logger
+    )
+
+    # Sentiment plots
+    sentiment_df = results_df[results_df['task'] == 'sentiment']
+    sentiment_pca_df = sentiment_df[sentiment_df['method'] == 'pca']
+    sentiment_random_df = sentiment_df[sentiment_df['method'] == 'random']
+
+    logger.info("\nSentiment - PCA method:")
+    create_bar_plot(
+        sentiment_pca_df,
+        'mutual_information',
+        'Mutual Information',
+        'Sentiment (PCA): Mutual Information Across Layers',
+        plots_dir / 'sentiment_pca_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        sentiment_pca_df,
+        'accuracy',
+        'Accuracy',
+        'Sentiment (PCA): Classification Accuracy Across Layers',
+        plots_dir / 'sentiment_pca_accuracy.png',
+        logger
+    )
+
+    logger.info("\nSentiment - Random baseline:")
+    create_bar_plot(
+        sentiment_random_df,
+        'mutual_information',
+        'Mutual Information',
+        'Sentiment (Random Gaussian): Mutual Information Across Layers',
+        plots_dir / 'sentiment_random_mutual_information.png',
+        logger
+    )
+
+    create_bar_plot(
+        sentiment_random_df,
+        'accuracy',
+        'Accuracy',
+        'Sentiment (Random Gaussian): Classification Accuracy Across Layers',
+        plots_dir / 'sentiment_random_accuracy.png',
+        logger
+    )
+
+    logger.info(f"\nGenerated 20 plots in: {plots_dir} (5 tasks × 2 methods × 2 metrics)")
 
     # Summary statistics
     logger.info(f"\n{'='*80}")
@@ -3112,6 +3317,46 @@ def main():
     logger.info("\nWord Length Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
     for layer in range(1, 12):
         layer_df = word_length_random_df[word_length_random_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nVerb Tense Task - PCA (10 components):")
+    for layer in range(1, 12):
+        layer_df = verb_tense_pca_df[verb_tense_pca_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nVerb Tense Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
+    for layer in range(1, 12):
+        layer_df = verb_tense_random_df[verb_tense_random_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nSentiment Task - PCA (10 components):")
+    for layer in range(1, 12):
+        layer_df = sentiment_pca_df[sentiment_pca_df['layer'] == layer]
+        logger.info(
+            f"  Layer {layer}: "
+            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
+            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
+            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
+        )
+
+    logger.info("\nSentiment Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
+    for layer in range(1, 12):
+        layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
             f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
