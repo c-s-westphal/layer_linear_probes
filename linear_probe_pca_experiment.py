@@ -2501,14 +2501,14 @@ def apply_random_and_probe(
     Sample random feature subsets and train probes (baseline comparison).
 
     For each subset, sample the number of features from a Gaussian distribution
-    centered at width/2 (384 for d_model=768), then randomly select that many features.
-    Train one probe per random subset (20 subsets total for comparison).
+    centered at width/20 (38 for d_model=768), then randomly select that many features.
+    Train one probe per random subset.
 
     Args:
         activations: (n_examples, 768) activation matrix
         labels: (n_examples,) label array
         n_features: Ignored (kept for backward compatibility)
-        n_subsets: Number of random subsets to try (default: 20)
+        n_subsets: Number of random subsets to try (default: 3)
         logger: Logger instance
 
     Returns:
@@ -2523,8 +2523,8 @@ def apply_random_and_probe(
     standardized_activations = scaler.fit_transform(activations)
 
     d_model = standardized_activations.shape[1]  # Should be 768
-    mean_features = d_model // 2  # width/2 = 384 for d_model=768
-    std_features = 50  # Reasonable standard deviation
+    mean_features = d_model // 20  # width/20 = 38 for d_model=768
+    std_features = 5  # Reduced standard deviation
 
     mi_scores = []
     accuracy_scores = []
@@ -2713,12 +2713,10 @@ def main():
     from fixed_datasets import (
         create_ner_dataset_diverse,
         create_word_length_dataset_diverse,
-        create_verb_tense_dataset_diverse,
         create_sentiment_dataset_diverse
     )
     ner_data = create_ner_dataset_diverse()
     word_length_data = create_word_length_dataset_diverse()
-    verb_tense_data = create_verb_tense_dataset_diverse()
     sentiment_data = create_sentiment_dataset_diverse()
 
     logger.info(f"POS dataset: {len(pos_data)} examples")
@@ -2735,11 +2733,6 @@ def main():
     logger.info(f"  Short (3-5 letters): {sum(1 for x in word_length_data if x['label'] == 0)}")
     logger.info(f"  Medium (6-8 letters): {sum(1 for x in word_length_data if x['label'] == 1)}")
     logger.info(f"  Long (9+ letters): {sum(1 for x in word_length_data if x['label'] == 2)}")
-
-    logger.info(f"Verb Tense dataset: {len(verb_tense_data)} examples")
-    logger.info(f"  Past: {sum(1 for x in verb_tense_data if x['label'] == 0)}")
-    logger.info(f"  Present: {sum(1 for x in verb_tense_data if x['label'] == 1)}")
-    logger.info(f"  Future: {sum(1 for x in verb_tense_data if x['label'] == 2)}")
 
     logger.info(f"Sentiment dataset: {len(sentiment_data)} examples")
     logger.info(f"  Positive: {sum(1 for x in sentiment_data if x['label'] == 0)}")
@@ -2796,7 +2789,7 @@ def main():
             })
 
         # Method 2: Random baseline (3 subsets, Gaussian feature sampling)
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(384, 50))")
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
@@ -2848,7 +2841,7 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(384, 50))")
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
         ner_random_results = apply_random_and_probe(
             ner_acts,
             ner_labels,
@@ -2899,7 +2892,7 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(384, 50))")
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
         word_length_random_results = apply_random_and_probe(
             word_length_acts,
             word_length_labels,
@@ -2916,57 +2909,6 @@ def main():
                 'mutual_information': word_length_random_results['mutual_information'][run],
                 'accuracy': word_length_random_results['accuracy'][run],
                 'f1_score': word_length_random_results['f1_score'][run]
-            })
-
-        # Process Verb Tense task
-        logger.info("\nTask: Verb Tense (3-class Classification)")
-        logger.info("-" * 80)
-
-        verb_tense_acts, verb_tense_labels = extract_activations(
-            model, verb_tense_data, layer, logger
-        )
-
-        log_diagnostics(verb_tense_acts, verb_tense_labels, "Verb Tense", logger)
-
-        # Method 1: PCA
-        logger.info("\n  Method: PCA (top 10 components)")
-        verb_tense_pca_results = apply_pca_and_probe(
-            verb_tense_acts,
-            verb_tense_labels,
-            n_components=args.n_components,
-            n_runs=args.n_runs,
-            logger=logger
-        )
-
-        for run in range(args.n_runs):
-            all_results.append({
-                'layer': layer,
-                'task': 'verb_tense',
-                'method': 'pca',
-                'run': run,
-                'mutual_information': verb_tense_pca_results['mutual_information'][run],
-                'accuracy': verb_tense_pca_results['accuracy'][run],
-                'f1_score': verb_tense_pca_results['f1_score'][run]
-            })
-
-        # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(384, 50))")
-        verb_tense_random_results = apply_random_and_probe(
-            verb_tense_acts,
-            verb_tense_labels,
-            n_subsets=3,
-            logger=logger
-        )
-
-        for run in range(3):
-            all_results.append({
-                'layer': layer,
-                'task': 'verb_tense',
-                'method': 'random',
-                'run': run,
-                'mutual_information': verb_tense_random_results['mutual_information'][run],
-                'accuracy': verb_tense_random_results['accuracy'][run],
-                'f1_score': verb_tense_random_results['f1_score'][run]
             })
 
         # Process Sentiment task
@@ -3001,7 +2943,7 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(384, 50))")
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
         sentiment_random_results = apply_random_and_probe(
             sentiment_acts,
             sentiment_labels,
@@ -3171,49 +3113,6 @@ def main():
         logger
     )
 
-    # Verb Tense plots
-    verb_tense_df = results_df[results_df['task'] == 'verb_tense']
-    verb_tense_pca_df = verb_tense_df[verb_tense_df['method'] == 'pca']
-    verb_tense_random_df = verb_tense_df[verb_tense_df['method'] == 'random']
-
-    logger.info("\nVerb Tense - PCA method:")
-    create_bar_plot(
-        verb_tense_pca_df,
-        'mutual_information',
-        'Mutual Information',
-        'Verb Tense (PCA): Mutual Information Across Layers',
-        plots_dir / 'verb_tense_pca_mutual_information.png',
-        logger
-    )
-
-    create_bar_plot(
-        verb_tense_pca_df,
-        'accuracy',
-        'Accuracy',
-        'Verb Tense (PCA): Classification Accuracy Across Layers',
-        plots_dir / 'verb_tense_pca_accuracy.png',
-        logger
-    )
-
-    logger.info("\nVerb Tense - Random baseline:")
-    create_bar_plot(
-        verb_tense_random_df,
-        'mutual_information',
-        'Mutual Information',
-        'Verb Tense (Random Gaussian): Mutual Information Across Layers',
-        plots_dir / 'verb_tense_random_mutual_information.png',
-        logger
-    )
-
-    create_bar_plot(
-        verb_tense_random_df,
-        'accuracy',
-        'Accuracy',
-        'Verb Tense (Random Gaussian): Classification Accuracy Across Layers',
-        plots_dir / 'verb_tense_random_accuracy.png',
-        logger
-    )
-
     # Sentiment plots
     sentiment_df = results_df[results_df['task'] == 'sentiment']
     sentiment_pca_df = sentiment_df[sentiment_df['method'] == 'pca']
@@ -3257,7 +3156,7 @@ def main():
         logger
     )
 
-    logger.info(f"\nGenerated 20 plots in: {plots_dir} (5 tasks × 2 methods × 2 metrics)")
+    logger.info(f"\nGenerated 16 plots in: {plots_dir} (4 tasks × 2 methods × 2 metrics)")
 
     # Summary statistics
     logger.info(f"\n{'='*80}")
@@ -3274,7 +3173,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
+    logger.info("\nPart of Speech Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
@@ -3294,7 +3193,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nNER Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
+    logger.info("\nNER Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
     for layer in range(1, 12):
         layer_df = ner_random_df[ner_random_df['layer'] == layer]
         logger.info(
@@ -3314,29 +3213,9 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nWord Length Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
+    logger.info("\nWord Length Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
     for layer in range(1, 12):
         layer_df = word_length_random_df[word_length_random_df['layer'] == layer]
-        logger.info(
-            f"  Layer {layer}: "
-            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
-            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
-            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
-        )
-
-    logger.info("\nVerb Tense Task - PCA (10 components):")
-    for layer in range(1, 12):
-        layer_df = verb_tense_pca_df[verb_tense_pca_df['layer'] == layer]
-        logger.info(
-            f"  Layer {layer}: "
-            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
-            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
-            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
-        )
-
-    logger.info("\nVerb Tense Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
-    for layer in range(1, 12):
-        layer_df = verb_tense_random_df[verb_tense_random_df['layer'] == layer]
         logger.info(
             f"  Layer {layer}: "
             f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
@@ -3354,7 +3233,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nSentiment Task - Random Baseline (3 subsets, Gaussian ~ N(384, 50)):")
+    logger.info("\nSentiment Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
     for layer in range(1, 12):
         layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
