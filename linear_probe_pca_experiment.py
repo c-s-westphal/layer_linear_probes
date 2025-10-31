@@ -2283,6 +2283,7 @@ def extract_activations(
     hook_name = f"blocks.{layer}.hook_resid_post"
     activations_list = []
     labels_list = []
+    token_positions = []  # Track all token positions
 
     # DEBUG: Print first few examples
     if layer == 1:
@@ -2303,6 +2304,12 @@ def extract_activations(
             target_pos = find_target_token_position(
                 tokens, model.tokenizer, text, target_word
             )
+            # DEBUG: Track token positions for first layer
+            if layer == 1 and len(activations_list) < 5:
+                logger.info(f"  [DEBUG] Example {len(activations_list)}: target_pos={target_pos}, text='{text}'")
+
+            # Track all positions for statistics
+            token_positions.append(target_pos)
         except ValueError as e:
             logger.warning(f"Skipping example: {e}")
             continue
@@ -2325,6 +2332,13 @@ def extract_activations(
     labels = np.array(labels_list)
 
     logger.info(f"  Extracted {len(activations)} activations of shape {activations.shape}")
+
+    # DEBUG: Token position statistics
+    if layer == 1:
+        unique_positions, position_counts = np.unique(token_positions, return_counts=True)
+        logger.info(f"  [DEBUG] Token position distribution: {dict(zip(unique_positions, position_counts))}")
+        logger.info(f"  [DEBUG] Position range: {min(token_positions)} to {max(token_positions)}")
+        logger.info(f"  [DEBUG] Most common position: {unique_positions[np.argmax(position_counts)]} ({max(position_counts)}/{len(token_positions)} examples)")
 
     # DEBUG: Check if activations are identical across examples
     if len(activations) > 1:
