@@ -2709,8 +2709,10 @@ def main():
     # SKIPPING plurality dataset - no signal (separability ratio = 0.0)
     # plurality_data = create_plurality_dataset()
     pos_data = create_pos_dataset()
-    ner_data = create_ner_dataset()
-    word_length_data = create_word_length_dataset()
+    # Import diverse datasets with varied sentence structures
+    from fixed_datasets import create_ner_dataset_diverse, create_word_length_dataset_diverse
+    ner_data = create_ner_dataset_diverse()
+    word_length_data = create_word_length_dataset_diverse()
 
     logger.info(f"POS dataset: {len(pos_data)} examples")
     logger.info(f"  Nouns: {sum(1 for x in pos_data if x['label'] == 0)}")
