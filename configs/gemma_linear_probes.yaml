@@ -3,15 +3,18 @@
 # Model configuration
 model_name: "google/gemma-2-2b"
 hook: "resid_post"
-layers: [1, 5, 10, 15, 20, 25]
+layers: "1-25"  # All 25 layers (skipping layer 0)
 
 # PCA configuration
 n_components: 10
 n_runs: 3  # Number of probe training runs for confidence intervals
 
 # Random baseline configuration
-# Will use Gaussian sampling N(d_model/20, 5) with 3 subsets
-# For Gemma: d_model=2304, so N(115, 5)
+# Using very small subsets: N(10, 2) with 5 subsets
+# This tests if even tiny random feature sets can capture information
+n_subsets: 5
+random_mean: 10
+random_std: 2
 
 # Output configuration
 output_dir: "outputs/linear_probe_pca_gemma"

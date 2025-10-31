@@ -2497,21 +2497,24 @@ def apply_random_and_probe(
     labels: np.ndarray,
     n_features: int = None,  # Ignored when using Gaussian sampling
     n_subsets: int = 3,
-    logger: logging.Logger = None
+    logger: logging.Logger = None,
+    random_mean: int = None,
+    random_std: int = None
 ) -> Dict:
     """
     Sample random feature subsets and train probes (baseline comparison).
 
-    For each subset, sample the number of features from a Gaussian distribution
-    centered at width/20 (38 for d_model=768), then randomly select that many features.
-    Train one probe per random subset.
+    For each subset, sample the number of features from a Gaussian distribution,
+    then randomly select that many features. Train one probe per random subset.
 
     Args:
-        activations: (n_examples, 768) activation matrix
+        activations: (n_examples, d_model) activation matrix
         labels: (n_examples,) label array
         n_features: Ignored (kept for backward compatibility)
         n_subsets: Number of random subsets to try (default: 3)
         logger: Logger instance
+        random_mean: Mean for Gaussian sampling (default: d_model/20)
+        random_std: Std for Gaussian sampling (default: 5)
 
     Returns:
         Dictionary with:
@@ -2524,9 +2527,18 @@ def apply_random_and_probe(
     scaler = StandardScaler()
     standardized_activations = scaler.fit_transform(activations)
 
-    d_model = standardized_activations.shape[1]  # Should be 768
-    mean_features = d_model // 20  # width/20 = 38 for d_model=768
-    std_features = 5  # Reduced standard deviation
+    d_model = standardized_activations.shape[1]
+
+    # Use provided values or defaults
+    if random_mean is None:
+        mean_features = d_model // 20  # width/20 = 38 for d_model=768, 115 for Gemma
+    else:
+        mean_features = random_mean
+
+    if random_std is None:
+        std_features = 5
+    else:
+        std_features = random_std
 
     mi_scores = []
     accuracy_scores = []
@@ -2706,6 +2718,11 @@ def main():
     n_runs = config.get("n_runs", args.n_runs)
     seed = config.get("seed", args.seed)
 
+    # Random baseline configuration
+    n_subsets = config.get("n_subsets", 3)  # Default 3 subsets
+    random_mean = config.get("random_mean", None)  # If None, will use d_model/20
+    random_std = config.get("random_std", None)  # If None, will use 5
+
     # Parse layers
     if "layers" in config:
         layers_config = config["layers"]
@@ -2745,6 +2762,7 @@ def main():
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"PCA components: {n_components}")
     logger.info(f"Probe runs: {n_runs}")
+    logger.info(f"Random baseline: {n_subsets} subsets, N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})")
     logger.info(f"Random seed: {seed}")
 
     # Set random seed
@@ -2861,17 +2879,19 @@ def main():
                 'f1_score': pos_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (3 subsets, Gaussian feature sampling)
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
+        # Method 2: Random baseline (Gaussian feature sampling)
+        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
-            n_subsets=3,
-            logger=logger
+            n_subsets=n_subsets,
+            logger=logger,
+            random_mean=random_mean,
+            random_std=random_std
         )
 
         # Add random baseline results
-        for run in range(3):
+        for run in range(n_subsets):
             all_results.append({
                 'layer': layer,
                 'task': 'pos',
@@ -2914,15 +2934,17 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
+        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         ner_random_results = apply_random_and_probe(
             ner_acts,
             ner_labels,
-            n_subsets=3,
-            logger=logger
+            n_subsets=n_subsets,
+            logger=logger,
+            random_mean=random_mean,
+            random_std=random_std
         )
 
-        for run in range(3):
+        for run in range(n_subsets):
             all_results.append({
                 'layer': layer,
                 'task': 'ner',
@@ -2965,15 +2987,17 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
+        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         word_length_random_results = apply_random_and_probe(
             word_length_acts,
             word_length_labels,
-            n_subsets=3,
-            logger=logger
+            n_subsets=n_subsets,
+            logger=logger,
+            random_mean=random_mean,
+            random_std=random_std
         )
 
-        for run in range(3):
+        for run in range(n_subsets):
             all_results.append({
                 'layer': layer,
                 'task': 'word_length',
@@ -3016,15 +3040,17 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(38, 5))")
+        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         sentiment_random_results = apply_random_and_probe(
             sentiment_acts,
             sentiment_labels,
-            n_subsets=3,
-            logger=logger
+            n_subsets=n_subsets,
+            logger=logger,
+            random_mean=random_mean,
+            random_std=random_std
         )
 
-        for run in range(3):
+        for run in range(n_subsets):
             all_results.append({
                 'layer': layer,
                 'task': 'sentiment',
@@ -3246,7 +3272,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
+    logger.info("\nPart of Speech Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
     for layer in layers:
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
@@ -3266,7 +3292,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nNER Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
+    logger.info("\nNER Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
     for layer in layers:
         layer_df = ner_random_df[ner_random_df['layer'] == layer]
         logger.info(
@@ -3286,7 +3312,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nWord Length Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
+    logger.info("\nWord Length Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
     for layer in layers:
         layer_df = word_length_random_df[word_length_random_df['layer'] == layer]
         logger.info(
@@ -3306,7 +3332,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nSentiment Task - Random Baseline (3 subsets, Gaussian ~ N(38, 5)):")
+    logger.info("\nSentiment Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
     for layer in layers:
         layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
