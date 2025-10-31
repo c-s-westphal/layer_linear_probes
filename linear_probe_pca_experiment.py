@@ -2284,6 +2284,12 @@ def extract_activations(
     activations_list = []
     labels_list = []
 
+    # DEBUG: Print first few examples
+    if layer == 1:
+        logger.info(f"  [DEBUG] First 3 examples:")
+        for i in range(min(3, len(examples))):
+            logger.info(f"    {i}: text='{examples[i]['text']}', target='{examples[i]['target_word']}', label={examples[i]['label']}")
+
     for example in tqdm(examples, desc=f"Layer {layer} - Extracting"):
         text = example['text']
         target_word = example['target_word']
@@ -2319,6 +2325,14 @@ def extract_activations(
     labels = np.array(labels_list)
 
     logger.info(f"  Extracted {len(activations)} activations of shape {activations.shape}")
+
+    # DEBUG: Check if activations are identical across examples
+    if len(activations) > 1:
+        act_diff = np.abs(activations[0] - activations[1]).max()
+        logger.info(f"  [DEBUG] Max diff between first two activations: {act_diff:.6f}")
+        logger.info(f"  [DEBUG] First 5 labels: {labels[:5]}")
+        logger.info(f"  [DEBUG] First activation mean: {activations[0].mean():.6f}, std: {activations[0].std():.6f}")
+        logger.info(f"  [DEBUG] Second activation mean: {activations[1].mean():.6f}, std: {activations[1].std():.6f}")
 
     return activations, labels
 
@@ -2430,6 +2444,13 @@ def apply_pca_and_probe(
 
         # Get predictions
         predictions = probe.predict(reduced_activations)
+
+        # DEBUG: Check prediction distribution
+        if run == 0 and logger:
+            unique_preds, pred_counts = np.unique(predictions, return_counts=True)
+            logger.info(f"  [DEBUG] Prediction distribution: {dict(zip(unique_preds, pred_counts))}")
+            logger.info(f"  [DEBUG] First 10 predictions: {predictions[:10]}")
+            logger.info(f"  [DEBUG] First 10 labels: {labels[:10]}")
 
         # Calculate metrics
         mi = mutual_info_score(labels, predictions)
