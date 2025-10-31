@@ -2509,7 +2509,7 @@ def apply_random_and_probe(
     activations: np.ndarray,
     labels: np.ndarray,
     n_features: int = None,  # Ignored when using Gaussian sampling
-    n_subsets: int = 20,
+    n_subsets: int = 3,
     logger: logging.Logger = None
 ) -> Dict:
     """
@@ -2538,8 +2538,8 @@ def apply_random_and_probe(
     standardized_activations = scaler.fit_transform(activations)
 
     d_model = standardized_activations.shape[1]  # Should be 768
-    mean_features = 600  # Center Gaussian at 600 features
-    std_features = 75  # Standard deviation for Gaussian sampling
+    mean_features = 5  # Very small feature count to test if probes learn from activations
+    std_features = 2  # Small standard deviation
 
     mi_scores = []
     accuracy_scores = []
@@ -2792,17 +2792,17 @@ def main():
                 'f1_score': pos_pca_results['f1_score'][run]
             })
 
-        # Method 2: Random baseline (20 subsets, Gaussian feature sampling)
-        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(600, 75))")
+        # Method 2: Random baseline (3 subsets, Gaussian feature sampling)
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(5, 2))")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
-            n_subsets=20,
+            n_subsets=3,
             logger=logger
         )
 
         # Add random baseline results
-        for run in range(20):
+        for run in range(3):
             all_results.append({
                 'layer': layer,
                 'task': 'pos',
@@ -2845,15 +2845,15 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(600, 75))")
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(5, 2))")
         verb_tense_random_results = apply_random_and_probe(
             verb_tense_acts,
             verb_tense_labels,
-            n_subsets=20,
+            n_subsets=3,
             logger=logger
         )
 
-        for run in range(20):
+        for run in range(3):
             all_results.append({
                 'layer': layer,
                 'task': 'verb_tense',
@@ -2896,15 +2896,15 @@ def main():
             })
 
         # Method 2: Random baseline
-        logger.info("\n  Method: Random baseline (20 subsets, Gaussian ~ N(600, 75))")
+        logger.info("\n  Method: Random baseline (3 subsets, Gaussian ~ N(5, 2))")
         sentiment_random_results = apply_random_and_probe(
             sentiment_acts,
             sentiment_labels,
-            n_subsets=20,
+            n_subsets=3,
             logger=logger
         )
 
-        for run in range(20):
+        for run in range(3):
             all_results.append({
                 'layer': layer,
                 'task': 'sentiment',
@@ -3083,7 +3083,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nPart of Speech Task - Random Baseline (20 subsets, Gaussian ~ N(600, 75)):")
+    logger.info("\nPart of Speech Task - Random Baseline (3 subsets, Gaussian ~ N(5, 2)):")
     for layer in range(1, 12):
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
@@ -3103,7 +3103,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nVerb Tense Task - Random Baseline (20 subsets, Gaussian ~ N(600, 75)):")
+    logger.info("\nVerb Tense Task - Random Baseline (3 subsets, Gaussian ~ N(5, 2)):")
     for layer in range(1, 12):
         layer_df = verb_tense_random_df[verb_tense_random_df['layer'] == layer]
         logger.info(
@@ -3123,7 +3123,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nSentiment Task - Random Baseline (20 subsets, Gaussian ~ N(600, 75)):")
+    logger.info("\nSentiment Task - Random Baseline (3 subsets, Gaussian ~ N(5, 2)):")
     for layer in range(1, 12):
         layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
