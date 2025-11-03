@@ -17,6 +17,11 @@ For each layer (1-11, skipping layer 0 input embeddings):
 - Measure mutual information, accuracy, and F1 score
 """
 
+# IMPORTANT: Disable hf_transfer for RunPod compatibility
+# Must be set BEFORE any other imports that use HuggingFace Hub
+import os
+os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '0'
+
 import argparse
 import logging
 from pathlib import Path
