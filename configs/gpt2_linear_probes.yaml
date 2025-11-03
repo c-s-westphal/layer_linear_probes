@@ -1,22 +1,22 @@
-# Gemma-2-2b Linear Probe Experiment Configuration
+# GPT-2 Small Linear Probe Experiment Configuration
 
 # Model configuration
-model_name: "google/gemma-2-2b"
+model_name: "gpt2-small"
 hook: "resid_post"
-layers: "1-25"  # All 25 layers (skipping layer 0)
+layers: "1-11"  # All 11 layers (skipping layer 0)
 
 # PCA configuration
 n_components: 10
 n_runs: 3  # Number of probe training runs for confidence intervals
 
 # Random baseline configuration
-# Using 20 subsets with N(10, 2) for fair comparison with PCA (10 components)
+# Using 20 subsets with N(38, 5) for GPT-2 (d_model=768)
 n_subsets: 20
-random_mean: 10
-random_std: 2
+random_mean: 38
+random_std: 5
 
 # Output configuration
-output_dir: "outputs/linear_probe_pca_gemma"
+output_dir: "outputs/linear_probe_pca_gpt2"
 
 # Random seed
 seed: 42
