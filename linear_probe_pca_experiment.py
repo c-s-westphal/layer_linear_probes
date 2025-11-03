@@ -2797,6 +2797,9 @@ def main():
 
     model = model_loader.load_model()
 
+    # Verify model is on correct device
+    logger.info(f"Model device: {next(model.parameters()).device}")
+
     # Create datasets
     logger.info("\n" + "="*80)
     logger.info("CREATING DATASETS")
