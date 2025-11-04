@@ -2599,7 +2599,10 @@ def apply_random_and_probe(
         f1_scores.append(f1)
 
     if logger:
-        logger.info(f"  Random baseline ({n_subsets} subsets, Gaussian features ~ N({mean_features}, {std_features})):")
+        if use_fixed_size:
+            logger.info(f"  Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio}):")
+        else:
+            logger.info(f"  Random baseline ({n_subsets} subsets, Gaussian features ~ N({random_mean}, {random_std})):")
         logger.info(f"    Feature counts: min={min(n_features_list)}, max={max(n_features_list)}, mean={np.mean(n_features_list):.1f}")
         logger.info(f"    Mutual Information: {np.mean(mi_scores):.4f} ± {np.std(mi_scores):.4f}")
         logger.info(f"    Accuracy: {np.mean(accuracy_scores):.4f} ± {np.std(accuracy_scores):.4f}")
