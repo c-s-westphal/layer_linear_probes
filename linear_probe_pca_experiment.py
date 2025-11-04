@@ -2929,7 +2929,10 @@ def main():
         log_diagnostics(ner_acts, ner_labels, "NER (Named Entity Recognition)", logger)
 
         # Method 2: Random baseline
-        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
+        if use_fixed_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
+        else:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         ner_random_results = apply_random_and_probe(
             ner_acts,
             ner_labels,
@@ -2963,7 +2966,10 @@ def main():
         log_diagnostics(word_length_acts, word_length_labels, "Word Length", logger)
 
         # Method 2: Random baseline
-        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
+        if use_fixed_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
+        else:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         word_length_random_results = apply_random_and_probe(
             word_length_acts,
             word_length_labels,
@@ -2997,7 +3003,10 @@ def main():
         log_diagnostics(sentiment_acts, sentiment_labels, "Sentiment", logger)
 
         # Method 2: Random baseline
-        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
+        if use_fixed_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
+        else:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         sentiment_random_results = apply_random_and_probe(
             sentiment_acts,
             sentiment_labels,
@@ -3046,12 +3055,15 @@ def main():
     pos_df = results_df[results_df['task'] == 'pos']
     pos_random_df = pos_df[pos_df['method'] == 'random']
 
+    # Determine baseline method for plot titles
+    baseline_method = "Random Fixed-Size" if use_fixed_size else "Random Gaussian"
+
     logger.info("\nPOS - Random baseline:")
     create_bar_plot(
         pos_random_df,
         'mutual_information',
         'Mutual Information',
-        'Part of Speech (Random Gaussian): Mutual Information Across Layers',
+        f'Part of Speech ({baseline_method}): Mutual Information Across Layers',
         plots_dir / 'pos_random_mutual_information.png',
         logger
     )
@@ -3060,7 +3072,7 @@ def main():
         pos_random_df,
         'accuracy',
         'Accuracy',
-        'Part of Speech (Random Gaussian): Classification Accuracy Across Layers',
+        f'Part of Speech ({baseline_method}): Classification Accuracy Across Layers',
         plots_dir / 'pos_random_accuracy.png',
         logger
     )
@@ -3074,7 +3086,7 @@ def main():
         ner_random_df,
         'mutual_information',
         'Mutual Information',
-        'NER (Random Gaussian): Mutual Information Across Layers',
+        f'NER ({baseline_method}): Mutual Information Across Layers',
         plots_dir / 'ner_random_mutual_information.png',
         logger
     )
@@ -3083,7 +3095,7 @@ def main():
         ner_random_df,
         'accuracy',
         'Accuracy',
-        'NER (Random Gaussian): Classification Accuracy Across Layers',
+        f'NER ({baseline_method}): Classification Accuracy Across Layers',
         plots_dir / 'ner_random_accuracy.png',
         logger
     )
@@ -3097,7 +3109,7 @@ def main():
         word_length_random_df,
         'mutual_information',
         'Mutual Information',
-        'Word Length (Random Gaussian): Mutual Information Across Layers',
+        f'Word Length ({baseline_method}): Mutual Information Across Layers',
         plots_dir / 'word_length_random_mutual_information.png',
         logger
     )
@@ -3106,7 +3118,7 @@ def main():
         word_length_random_df,
         'accuracy',
         'Accuracy',
-        'Word Length (Random Gaussian): Classification Accuracy Across Layers',
+        f'Word Length ({baseline_method}): Classification Accuracy Across Layers',
         plots_dir / 'word_length_random_accuracy.png',
         logger
     )
@@ -3120,7 +3132,7 @@ def main():
         sentiment_random_df,
         'mutual_information',
         'Mutual Information',
-        'Sentiment (Random Gaussian): Mutual Information Across Layers',
+        f'Sentiment ({baseline_method}): Mutual Information Across Layers',
         plots_dir / 'sentiment_random_mutual_information.png',
         logger
     )
@@ -3129,7 +3141,7 @@ def main():
         sentiment_random_df,
         'accuracy',
         'Accuracy',
-        'Sentiment (Random Gaussian): Classification Accuracy Across Layers',
+        f'Sentiment ({baseline_method}): Classification Accuracy Across Layers',
         plots_dir / 'sentiment_random_accuracy.png',
         logger
     )
