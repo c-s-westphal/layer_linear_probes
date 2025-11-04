@@ -2887,30 +2887,11 @@ def main():
         # Log diagnostics for POS task
         log_diagnostics(pos_acts, pos_labels, "Part of Speech", logger)
 
-        # Method 1: PCA (top 10 components)
-        logger.info("\n  Method: PCA (top 10 components)")
-        pos_pca_results = apply_pca_and_probe(
-            pos_acts,
-            pos_labels,
-            n_components=n_components,
-            n_runs=n_runs,
-            logger=logger
-        )
-
-        # Add PCA results
-        for run in range(args.n_runs):
-            all_results.append({
-                'layer': layer,
-                'task': 'pos',
-                'method': 'pca',
-                'run': run,
-                'mutual_information': pos_pca_results['mutual_information'][run],
-                'accuracy': pos_pca_results['accuracy'][run],
-                'f1_score': pos_pca_results['f1_score'][run]
-            })
-
-        # Method 2: Random baseline (Gaussian feature sampling)
-        logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
+        # Random baseline with fixed-size subsets
+        if use_fixed_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
+        else:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         pos_random_results = apply_random_and_probe(
             pos_acts,
             pos_labels,
@@ -3058,29 +3039,9 @@ def main():
     # plurality_pca_df = plurality_df[plurality_df['method'] == 'pca']
     # plurality_random_df = plurality_df[plurality_df['method'] == 'random']
 
-    # POS plots - PCA vs Random comparison
+    # POS plots - Random baseline only
     pos_df = results_df[results_df['task'] == 'pos']
-    pos_pca_df = pos_df[pos_df['method'] == 'pca']
     pos_random_df = pos_df[pos_df['method'] == 'random']
-
-    logger.info("\nPOS - PCA method:")
-    create_bar_plot(
-        pos_pca_df,
-        'mutual_information',
-        'Mutual Information',
-        'Part of Speech (PCA): Mutual Information Across Layers',
-        plots_dir / 'pos_pca_mutual_information.png',
-        logger
-    )
-
-    create_bar_plot(
-        pos_pca_df,
-        'accuracy',
-        'Accuracy',
-        'Part of Speech (PCA): Classification Accuracy Across Layers',
-        plots_dir / 'pos_pca_accuracy.png',
-        logger
-    )
 
     logger.info("\nPOS - Random baseline:")
     create_bar_plot(
@@ -3101,29 +3062,9 @@ def main():
         logger
     )
 
-    # NER plots
+    # NER plots - Random baseline only
     ner_df = results_df[results_df['task'] == 'ner']
-    ner_pca_df = ner_df[ner_df['method'] == 'pca']
     ner_random_df = ner_df[ner_df['method'] == 'random']
-
-    logger.info("\nNER (Named Entity Recognition) - PCA method:")
-    create_bar_plot(
-        ner_pca_df,
-        'mutual_information',
-        'Mutual Information',
-        'NER (PCA): Mutual Information Across Layers',
-        plots_dir / 'ner_pca_mutual_information.png',
-        logger
-    )
-
-    create_bar_plot(
-        ner_pca_df,
-        'accuracy',
-        'Accuracy',
-        'NER (PCA): Classification Accuracy Across Layers',
-        plots_dir / 'ner_pca_accuracy.png',
-        logger
-    )
 
     logger.info("\nNER (Named Entity Recognition) - Random baseline:")
     create_bar_plot(
@@ -3144,29 +3085,9 @@ def main():
         logger
     )
 
-    # Word Length plots
+    # Word Length plots - Random baseline only
     word_length_df = results_df[results_df['task'] == 'word_length']
-    word_length_pca_df = word_length_df[word_length_df['method'] == 'pca']
     word_length_random_df = word_length_df[word_length_df['method'] == 'random']
-
-    logger.info("\nWord Length - PCA method:")
-    create_bar_plot(
-        word_length_pca_df,
-        'mutual_information',
-        'Mutual Information',
-        'Word Length (PCA): Mutual Information Across Layers',
-        plots_dir / 'word_length_pca_mutual_information.png',
-        logger
-    )
-
-    create_bar_plot(
-        word_length_pca_df,
-        'accuracy',
-        'Accuracy',
-        'Word Length (PCA): Classification Accuracy Across Layers',
-        plots_dir / 'word_length_pca_accuracy.png',
-        logger
-    )
 
     logger.info("\nWord Length - Random baseline:")
     create_bar_plot(
@@ -3187,29 +3108,9 @@ def main():
         logger
     )
 
-    # Sentiment plots
+    # Sentiment plots - Random baseline only
     sentiment_df = results_df[results_df['task'] == 'sentiment']
-    sentiment_pca_df = sentiment_df[sentiment_df['method'] == 'pca']
     sentiment_random_df = sentiment_df[sentiment_df['method'] == 'random']
-
-    logger.info("\nSentiment - PCA method:")
-    create_bar_plot(
-        sentiment_pca_df,
-        'mutual_information',
-        'Mutual Information',
-        'Sentiment (PCA): Mutual Information Across Layers',
-        plots_dir / 'sentiment_pca_mutual_information.png',
-        logger
-    )
-
-    create_bar_plot(
-        sentiment_pca_df,
-        'accuracy',
-        'Accuracy',
-        'Sentiment (PCA): Classification Accuracy Across Layers',
-        plots_dir / 'sentiment_pca_accuracy.png',
-        logger
-    )
 
     logger.info("\nSentiment - Random baseline:")
     create_bar_plot(
@@ -3230,24 +3131,19 @@ def main():
         logger
     )
 
-    logger.info(f"\nGenerated 16 plots in: {plots_dir} (4 tasks × 2 methods × 2 metrics)")
+    logger.info(f"\nGenerated 8 plots in: {plots_dir} (4 tasks × 1 method × 2 metrics)")
 
     # Summary statistics
     logger.info(f"\n{'='*80}")
     logger.info("SUMMARY STATISTICS")
     logger.info("="*80)
 
-    logger.info("\nPart of Speech Task - PCA (10 components):")
-    for layer in layers:
-        layer_df = pos_pca_df[pos_pca_df['layer'] == layer]
-        logger.info(
-            f"  Layer {layer}: "
-            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
-            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
-            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
-        )
+    if use_fixed_size:
+        baseline_desc = f"{n_subsets} subsets, fixed size = d_model/{fixed_size_ratio}"
+    else:
+        baseline_desc = f"{n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})"
 
-    logger.info("\nPart of Speech Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
+    logger.info(f"\nPart of Speech Task - Random Baseline ({baseline_desc}):")
     for layer in layers:
         layer_df = pos_random_df[pos_random_df['layer'] == layer]
         logger.info(
@@ -3257,17 +3153,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nNER Task - PCA (10 components):")
-    for layer in layers:
-        layer_df = ner_pca_df[ner_pca_df['layer'] == layer]
-        logger.info(
-            f"  Layer {layer}: "
-            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
-            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
-            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
-        )
-
-    logger.info("\nNER Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
+    logger.info(f"\nNER Task - Random Baseline ({baseline_desc}):")
     for layer in layers:
         layer_df = ner_random_df[ner_random_df['layer'] == layer]
         logger.info(
@@ -3277,17 +3163,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nWord Length Task - PCA (10 components):")
-    for layer in layers:
-        layer_df = word_length_pca_df[word_length_pca_df['layer'] == layer]
-        logger.info(
-            f"  Layer {layer}: "
-            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
-            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
-            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
-        )
-
-    logger.info("\nWord Length Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
+    logger.info(f"\nWord Length Task - Random Baseline ({baseline_desc}):")
     for layer in layers:
         layer_df = word_length_random_df[word_length_random_df['layer'] == layer]
         logger.info(
@@ -3297,17 +3173,7 @@ def main():
             f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
         )
 
-    logger.info("\nSentiment Task - PCA (10 components):")
-    for layer in layers:
-        layer_df = sentiment_pca_df[sentiment_pca_df['layer'] == layer]
-        logger.info(
-            f"  Layer {layer}: "
-            f"MI={layer_df['mutual_information'].mean():.4f} ± {layer_df['mutual_information'].std():.4f}, "
-            f"Acc={layer_df['accuracy'].mean():.4f} ± {layer_df['accuracy'].std():.4f}, "
-            f"F1={layer_df['f1_score'].mean():.4f} ± {layer_df['f1_score'].std():.4f}"
-        )
-
-    logger.info("\nSentiment Task - Random Baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})):")
+    logger.info(f"\nSentiment Task - Random Baseline ({baseline_desc}):")
     for layer in layers:
         layer_df = sentiment_random_df[sentiment_random_df['layer'] == layer]
         logger.info(
