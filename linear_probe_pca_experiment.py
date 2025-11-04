@@ -2503,10 +2503,11 @@ def apply_random_and_probe(
     n_features: int = None,  # Ignored
     n_subsets: int = 3,
     logger: logging.Logger = None,
-    random_mean: int = None,  # Ignored if use_fixed_size=True
-    random_std: int = None,  # Ignored if use_fixed_size=True
+    random_mean: int = None,  # Ignored if use_fixed_size=True or use_uniform_size=True
+    random_std: int = None,  # Ignored if use_fixed_size=True or use_uniform_size=True
     use_fixed_size: bool = False,
-    fixed_size_ratio: int = 20
+    fixed_size_ratio: int = 20,
+    use_uniform_size: bool = False  # If True, uniformly sample subset size from [1, d_model]
 ) -> Dict:
     """
     Sample random feature subsets and train probes (baseline comparison).
@@ -2517,10 +2518,11 @@ def apply_random_and_probe(
         n_features: Ignored (kept for backward compatibility)
         n_subsets: Number of random subsets to try (default: 3)
         logger: Logger instance
-        random_mean: Mean for Gaussian sampling (ignored if use_fixed_size=True)
-        random_std: Std for Gaussian sampling (ignored if use_fixed_size=True)
+        random_mean: Mean for Gaussian sampling (ignored if use_fixed_size=True or use_uniform_size=True)
+        random_std: Std for Gaussian sampling (ignored if use_fixed_size=True or use_uniform_size=True)
         use_fixed_size: If True, use fixed subset size = d_model / fixed_size_ratio
         fixed_size_ratio: Ratio for fixed size (default: 20, gives d_model/20)
+        use_uniform_size: If True, uniformly sample subset size from [1, d_model] for each subset
 
     Returns:
         Dictionary with:
@@ -2546,7 +2548,10 @@ def apply_random_and_probe(
     for subset_idx in range(n_subsets):
         np.random.seed(42 + subset_idx)  # Reproducible
 
-        if use_fixed_size:
+        if use_uniform_size:
+            # Uniformly sample subset size from [1, d_model]
+            n_features_sample = np.random.randint(1, d_model + 1)
+        elif use_fixed_size:
             # Fixed size = d_model / fixed_size_ratio
             n_features_sample = d_model // fixed_size_ratio
         else:
@@ -2599,7 +2604,9 @@ def apply_random_and_probe(
         f1_scores.append(f1)
 
     if logger:
-        if use_fixed_size:
+        if use_uniform_size:
+            logger.info(f"  Random baseline ({n_subsets} subsets, uniform size from [1, d_model]):")
+        elif use_fixed_size:
             logger.info(f"  Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio}):")
         else:
             logger.info(f"  Random baseline ({n_subsets} subsets, Gaussian features ~ N({random_mean}, {random_std})):")
@@ -2751,6 +2758,7 @@ def main():
     random_std = config.get("random_std", None)  # If None, will use 5
     use_fixed_size = config.get("use_fixed_size", False)  # If True, use fixed subset size
     fixed_size_ratio = config.get("fixed_size_ratio", 20)  # Default: d_model/20
+    use_uniform_size = config.get("use_uniform_size", False)  # If True, uniformly sample subset size from [1, d_model]
 
     # Parse layers
     if "layers" in config:
@@ -2789,7 +2797,9 @@ def main():
     logger.info(f"Hook point: {hook}")
     logger.info(f"Layers: {layers}")
     logger.info(f"Output directory: {output_dir}")
-    if use_fixed_size:
+    if use_uniform_size:
+        logger.info(f"Random subsets: {n_subsets} subsets, uniform size from [1, d_model]")
+    elif use_fixed_size:
         logger.info(f"Random subsets: {n_subsets} subsets, fixed size = d_model/{fixed_size_ratio}")
     else:
         logger.info(f"Random subsets: {n_subsets} subsets, N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})")
@@ -2890,8 +2900,10 @@ def main():
         # Log diagnostics for POS task
         log_diagnostics(pos_acts, pos_labels, "Part of Speech", logger)
 
-        # Random baseline with fixed-size subsets
-        if use_fixed_size:
+        # Random baseline
+        if use_uniform_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, uniform size from [1, d_model])")
+        elif use_fixed_size:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
         else:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
@@ -2903,7 +2915,8 @@ def main():
             random_mean=random_mean,
             random_std=random_std,
             use_fixed_size=use_fixed_size,
-            fixed_size_ratio=fixed_size_ratio
+            fixed_size_ratio=fixed_size_ratio,
+            use_uniform_size=use_uniform_size
         )
 
         # Add random baseline results
@@ -2929,7 +2942,9 @@ def main():
         log_diagnostics(ner_acts, ner_labels, "NER (Named Entity Recognition)", logger)
 
         # Method 2: Random baseline
-        if use_fixed_size:
+        if use_uniform_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, uniform size from [1, d_model])")
+        elif use_fixed_size:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
         else:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
@@ -2941,7 +2956,8 @@ def main():
             random_mean=random_mean,
             random_std=random_std,
             use_fixed_size=use_fixed_size,
-            fixed_size_ratio=fixed_size_ratio
+            fixed_size_ratio=fixed_size_ratio,
+            use_uniform_size=use_uniform_size
         )
 
         for run in range(n_subsets):
@@ -2966,7 +2982,9 @@ def main():
         log_diagnostics(word_length_acts, word_length_labels, "Word Length", logger)
 
         # Method 2: Random baseline
-        if use_fixed_size:
+        if use_uniform_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, uniform size from [1, d_model])")
+        elif use_fixed_size:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
         else:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
@@ -2978,7 +2996,8 @@ def main():
             random_mean=random_mean,
             random_std=random_std,
             use_fixed_size=use_fixed_size,
-            fixed_size_ratio=fixed_size_ratio
+            fixed_size_ratio=fixed_size_ratio,
+            use_uniform_size=use_uniform_size
         )
 
         for run in range(n_subsets):
@@ -3003,7 +3022,9 @@ def main():
         log_diagnostics(sentiment_acts, sentiment_labels, "Sentiment", logger)
 
         # Method 2: Random baseline
-        if use_fixed_size:
+        if use_uniform_size:
+            logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, uniform size from [1, d_model])")
+        elif use_fixed_size:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, fixed size = d_model/{fixed_size_ratio})")
         else:
             logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
@@ -3015,7 +3036,8 @@ def main():
             random_mean=random_mean,
             random_std=random_std,
             use_fixed_size=use_fixed_size,
-            fixed_size_ratio=fixed_size_ratio
+            fixed_size_ratio=fixed_size_ratio,
+            use_uniform_size=use_uniform_size
         )
 
         for run in range(n_subsets):
@@ -3056,7 +3078,12 @@ def main():
     pos_random_df = pos_df[pos_df['method'] == 'random']
 
     # Determine baseline method for plot titles
-    baseline_method = "Random Fixed-Size" if use_fixed_size else "Random Gaussian"
+    if use_uniform_size:
+        baseline_method = "Random Uniform-Size"
+    elif use_fixed_size:
+        baseline_method = "Random Fixed-Size"
+    else:
+        baseline_method = "Random Gaussian"
 
     logger.info("\nPOS - Random baseline:")
     create_bar_plot(
@@ -3153,7 +3180,9 @@ def main():
     logger.info("SUMMARY STATISTICS")
     logger.info("="*80)
 
-    if use_fixed_size:
+    if use_uniform_size:
+        baseline_desc = f"{n_subsets} subsets, uniform size from [1, d_model]"
+    elif use_fixed_size:
         baseline_desc = f"{n_subsets} subsets, fixed size = d_model/{fixed_size_ratio}"
     else:
         baseline_desc = f"{n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})"
