@@ -2500,17 +2500,16 @@ def apply_pca_and_probe(
 def apply_random_and_probe(
     activations: np.ndarray,
     labels: np.ndarray,
-    n_features: int = None,  # Ignored when using Gaussian sampling
+    n_features: int = None,  # Ignored
     n_subsets: int = 3,
     logger: logging.Logger = None,
-    random_mean: int = None,
-    random_std: int = None
+    random_mean: int = None,  # Ignored if use_fixed_size=True
+    random_std: int = None,  # Ignored if use_fixed_size=True
+    use_fixed_size: bool = False,
+    fixed_size_ratio: int = 20
 ) -> Dict:
     """
     Sample random feature subsets and train probes (baseline comparison).
-
-    For each subset, sample the number of features from a Gaussian distribution,
-    then randomly select that many features. Train one probe per random subset.
 
     Args:
         activations: (n_examples, d_model) activation matrix
@@ -2518,8 +2517,10 @@ def apply_random_and_probe(
         n_features: Ignored (kept for backward compatibility)
         n_subsets: Number of random subsets to try (default: 3)
         logger: Logger instance
-        random_mean: Mean for Gaussian sampling (default: d_model/20)
-        random_std: Std for Gaussian sampling (default: 5)
+        random_mean: Mean for Gaussian sampling (ignored if use_fixed_size=True)
+        random_std: Std for Gaussian sampling (ignored if use_fixed_size=True)
+        use_fixed_size: If True, use fixed subset size = d_model / fixed_size_ratio
+        fixed_size_ratio: Ratio for fixed size (default: 20, gives d_model/20)
 
     Returns:
         Dictionary with:
@@ -2534,33 +2535,51 @@ def apply_random_and_probe(
 
     d_model = standardized_activations.shape[1]
 
-    # Use provided values or defaults
-    if random_mean is None:
-        mean_features = d_model // 20  # width/20 = 38 for d_model=768, 115 for Gemma
-    else:
-        mean_features = random_mean
-
-    if random_std is None:
-        std_features = 5
-    else:
-        std_features = random_std
-
     mi_scores = []
     accuracy_scores = []
     f1_scores = []
     n_features_list = []
 
-    for subset_idx in range(n_subsets):
-        # Sample number of features from Gaussian distribution
-        np.random.seed(42 + subset_idx)  # Reproducible
-        n_features_sample = int(np.random.normal(mean_features, std_features))
+    # Track used subsets to ensure uniqueness
+    used_subsets = set()
 
-        # Clip to valid range [10, d_model]
-        n_features_sample = max(10, min(d_model, n_features_sample))
+    for subset_idx in range(n_subsets):
+        np.random.seed(42 + subset_idx)  # Reproducible
+
+        if use_fixed_size:
+            # Fixed size = d_model / fixed_size_ratio
+            n_features_sample = d_model // fixed_size_ratio
+        else:
+            # Gaussian sampling
+            if random_mean is None:
+                mean_features = d_model // 20
+            else:
+                mean_features = random_mean
+
+            if random_std is None:
+                std_features = 5
+            else:
+                std_features = random_std
+
+            n_features_sample = int(np.random.normal(mean_features, std_features))
+            n_features_sample = max(10, min(d_model, n_features_sample))
+
         n_features_list.append(n_features_sample)
 
-        # Randomly sample features from standardized activations
-        selected_features = np.random.choice(d_model, size=n_features_sample, replace=False)
+        # Sample unique features (no duplicates across subsets)
+        max_attempts = 1000
+        for attempt in range(max_attempts):
+            selected_features = np.random.choice(d_model, size=n_features_sample, replace=False)
+            feature_tuple = tuple(sorted(selected_features))
+
+            if feature_tuple not in used_subsets:
+                used_subsets.add(feature_tuple)
+                break
+        else:
+            # If we couldn't find a unique subset after max_attempts, just use the last one
+            if logger:
+                logger.warning(f"Could not find unique subset after {max_attempts} attempts for subset {subset_idx}")
+
         random_activations = standardized_activations[:, selected_features]
 
         # Train logistic regression probe with more iterations
@@ -2727,6 +2746,8 @@ def main():
     n_subsets = config.get("n_subsets", 3)  # Default 3 subsets
     random_mean = config.get("random_mean", None)  # If None, will use d_model/20
     random_std = config.get("random_std", None)  # If None, will use 5
+    use_fixed_size = config.get("use_fixed_size", False)  # If True, use fixed subset size
+    fixed_size_ratio = config.get("fixed_size_ratio", 20)  # Default: d_model/20
 
     # Parse layers
     if "layers" in config:
@@ -2765,9 +2786,10 @@ def main():
     logger.info(f"Hook point: {hook}")
     logger.info(f"Layers: {layers}")
     logger.info(f"Output directory: {output_dir}")
-    logger.info(f"PCA components: {n_components}")
-    logger.info(f"Probe runs: {n_runs}")
-    logger.info(f"Random baseline: {n_subsets} subsets, N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})")
+    if use_fixed_size:
+        logger.info(f"Random subsets: {n_subsets} subsets, fixed size = d_model/{fixed_size_ratio}")
+    else:
+        logger.info(f"Random subsets: {n_subsets} subsets, N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5})")
     logger.info(f"Random seed: {seed}")
 
     # Set random seed
@@ -2895,7 +2917,9 @@ def main():
             n_subsets=n_subsets,
             logger=logger,
             random_mean=random_mean,
-            random_std=random_std
+            random_std=random_std,
+            use_fixed_size=use_fixed_size,
+            fixed_size_ratio=fixed_size_ratio
         )
 
         # Add random baseline results
@@ -2949,7 +2973,9 @@ def main():
             n_subsets=n_subsets,
             logger=logger,
             random_mean=random_mean,
-            random_std=random_std
+            random_std=random_std,
+            use_fixed_size=use_fixed_size,
+            fixed_size_ratio=fixed_size_ratio
         )
 
         for run in range(n_subsets):
@@ -3002,7 +3028,9 @@ def main():
             n_subsets=n_subsets,
             logger=logger,
             random_mean=random_mean,
-            random_std=random_std
+            random_std=random_std,
+            use_fixed_size=use_fixed_size,
+            fixed_size_ratio=fixed_size_ratio
         )
 
         for run in range(n_subsets):
@@ -3055,7 +3083,9 @@ def main():
             n_subsets=n_subsets,
             logger=logger,
             random_mean=random_mean,
-            random_std=random_std
+            random_std=random_std,
+            use_fixed_size=use_fixed_size,
+            fixed_size_ratio=fixed_size_ratio
         )
 
         for run in range(n_subsets):

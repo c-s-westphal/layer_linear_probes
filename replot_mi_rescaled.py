@@ -35,12 +35,18 @@ def create_mi_plot_rescaled(df, metric, ylabel, title, output_path, logger=None)
         std = np.std(values, ddof=1)
         n = len(values)
 
-        # 95% confidence interval using t-distribution
-        ci = stats.t.interval(0.95, n-1, loc=mean, scale=std/np.sqrt(n))
+        # Handle edge cases
+        if n <= 1 or std == 0:
+            # No variance, use mean with zero error bars
+            ci_lows.append(0)
+            ci_highs.append(0)
+        else:
+            # 95% confidence interval using t-distribution
+            ci = stats.t.interval(0.95, n-1, loc=mean, scale=std/np.sqrt(n))
+            ci_lows.append(mean - ci[0])  # Error bar below mean
+            ci_highs.append(ci[1] - mean)  # Error bar above mean
 
         means.append(mean)
-        ci_lows.append(mean - ci[0])  # Error bar below mean
-        ci_highs.append(ci[1] - mean)  # Error bar above mean
 
     means = np.array(means)
     ci_lows = np.array(ci_lows)
@@ -50,10 +56,16 @@ def create_mi_plot_rescaled(df, metric, ylabel, title, output_path, logger=None)
     y_min = np.min(means - ci_lows)
     y_max = np.max(means + ci_highs)
 
-    # Add small padding (5% of range)
-    y_range = y_max - y_min
-    y_min = y_min - 0.05 * y_range
-    y_max = y_max + 0.05 * y_range
+    # Handle edge case where all values are identical
+    if np.isnan(y_min) or np.isnan(y_max) or y_min == y_max:
+        # Use simple range around mean
+        y_min = np.min(means) * 0.95
+        y_max = np.max(means) * 1.05
+    else:
+        # Add small padding (5% of range)
+        y_range = y_max - y_min
+        y_min = y_min - 0.05 * y_range
+        y_max = y_max + 0.05 * y_range
 
     # Create plot
     fig, ax = plt.subplots(figsize=(12, 6))

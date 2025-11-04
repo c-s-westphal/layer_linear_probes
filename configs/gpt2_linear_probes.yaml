@@ -5,15 +5,11 @@ model_name: "gpt2-small"
 hook: "resid_post"
 layers: "1-11"  # All 11 layers (skipping layer 0)
 
-# PCA configuration
-n_components: 10
-n_runs: 3  # Number of probe training runs for confidence intervals
-
 # Random baseline configuration
-# Using 20 subsets with N(38, 5) for GPT-2 (d_model=768)
-n_subsets: 20
-random_mean: 38
-random_std: 5
+# 100 unique subsets with fixed size = d_model/20 (38 for GPT-2)
+n_subsets: 100
+use_fixed_size: true
+fixed_size_ratio: 20  # subset_size = d_model / 20
 
 # Output configuration
 output_dir: "outputs/linear_probe_pca_gpt2"

@@ -5,15 +5,11 @@ model_name: "google/gemma-2-2b"
 hook: "resid_post"
 layers: "1-25"  # All 25 layers (skipping layer 0)
 
-# PCA configuration
-n_components: 10
-n_runs: 3  # Number of probe training runs for confidence intervals
-
 # Random baseline configuration
-# Using 20 subsets with N(10, 2) for fair comparison with PCA (10 components)
-n_subsets: 20
-random_mean: 10
-random_std: 2
+# 100 unique subsets with fixed size = d_model/20 (115 for Gemma, d_model=2304)
+n_subsets: 100
+use_fixed_size: true
+fixed_size_ratio: 20  # subset_size = d_model / 20
 
 # Output configuration
 output_dir: "outputs/linear_probe_pca_gemma"
