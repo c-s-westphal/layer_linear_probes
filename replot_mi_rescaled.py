@@ -22,7 +22,7 @@ def create_mi_plot_rescaled(df, metric, ylabel, title, output_path, logger=None)
     """
     layers = sorted(df['layer'].unique())
 
-    # Compute mean and 95% CI for each layer
+    # Compute mean and 65% CI for each layer
     means = []
     ci_lows = []
     ci_highs = []
@@ -41,8 +41,8 @@ def create_mi_plot_rescaled(df, metric, ylabel, title, output_path, logger=None)
             ci_lows.append(0)
             ci_highs.append(0)
         else:
-            # 95% confidence interval using t-distribution
-            ci = stats.t.interval(0.95, n-1, loc=mean, scale=std/np.sqrt(n))
+            # 65% confidence interval using t-distribution
+            ci = stats.t.interval(0.65, n-1, loc=mean, scale=std/np.sqrt(n))
             ci_lows.append(mean - ci[0])  # Error bar below mean
             ci_highs.append(ci[1] - mean)  # Error bar above mean
 
@@ -134,7 +134,7 @@ def main():
             for task in tasks:
                 task_df = results_df[results_df['task'] == task]
 
-                # PCA MI plot
+                # PCA plots
                 pca_df = task_df[task_df['method'] == 'pca']
                 if len(pca_df) > 0:
                     print(f"\n{task.upper()} - PCA method:")
@@ -145,8 +145,15 @@ def main():
                         f'{task.upper()} (PCA): Mutual Information Across Layers',
                         plots_dir / f'{task}_pca_mutual_information_rescaled.png'
                     )
+                    create_mi_plot_rescaled(
+                        pca_df,
+                        'accuracy',
+                        'Accuracy',
+                        f'{task.upper()} (PCA): Classification Accuracy Across Layers',
+                        plots_dir / f'{task}_pca_accuracy_rescaled.png'
+                    )
 
-                # Random baseline MI plot
+                # Random baseline plots
                 random_df = task_df[task_df['method'] == 'random']
                 if len(random_df) > 0:
                     print(f"\n{task.upper()} - Random baseline:")
@@ -156,6 +163,13 @@ def main():
                         'Mutual Information',
                         f'{task.upper()} (Random): Mutual Information Across Layers',
                         plots_dir / f'{task}_random_mutual_information_rescaled.png'
+                    )
+                    create_mi_plot_rescaled(
+                        random_df,
+                        'accuracy',
+                        'Accuracy',
+                        f'{task.upper()} (Random): Classification Accuracy Across Layers',
+                        plots_dir / f'{task}_random_accuracy_rescaled.png'
                     )
 
             print(f"\nGPT-2 rescaled plots saved to: {plots_dir}")
@@ -183,7 +197,7 @@ def main():
             for task in tasks:
                 task_df = results_df[results_df['task'] == task]
 
-                # PCA MI plot
+                # PCA plots
                 pca_df = task_df[task_df['method'] == 'pca']
                 if len(pca_df) > 0:
                     print(f"\n{task.upper()} - PCA method:")
@@ -194,8 +208,15 @@ def main():
                         f'{task.upper()} (PCA): Mutual Information Across Layers',
                         plots_dir / f'{task}_pca_mutual_information_rescaled.png'
                     )
+                    create_mi_plot_rescaled(
+                        pca_df,
+                        'accuracy',
+                        'Accuracy',
+                        f'{task.upper()} (PCA): Classification Accuracy Across Layers',
+                        plots_dir / f'{task}_pca_accuracy_rescaled.png'
+                    )
 
-                # Random baseline MI plot
+                # Random baseline plots
                 random_df = task_df[task_df['method'] == 'random']
                 if len(random_df) > 0:
                     print(f"\n{task.upper()} - Random baseline:")
@@ -205,6 +226,13 @@ def main():
                         'Mutual Information',
                         f'{task.upper()} (Random): Mutual Information Across Layers',
                         plots_dir / f'{task}_random_mutual_information_rescaled.png'
+                    )
+                    create_mi_plot_rescaled(
+                        random_df,
+                        'accuracy',
+                        'Accuracy',
+                        f'{task.upper()} (Random): Classification Accuracy Across Layers',
+                        plots_dir / f'{task}_random_accuracy_rescaled.png'
                     )
 
             print(f"\nGemma rescaled plots saved to: {plots_dir}")
