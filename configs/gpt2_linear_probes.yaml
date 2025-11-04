@@ -6,10 +6,10 @@ hook: "resid_post"
 layers: "1-11"  # All 11 layers (skipping layer 0)
 
 # Random baseline configuration
-# 100 unique subsets with fixed size = d_model/20 (38 for GPT-2)
+# 100 unique subsets with fixed size = d_model/100 (7 for GPT-2)
 n_subsets: 100
 use_fixed_size: true
-fixed_size_ratio: 20  # subset_size = d_model / 20
+fixed_size_ratio: 100  # subset_size = d_model / 100
 
 # Output configuration
 output_dir: "outputs/linear_probe_pca_gpt2"

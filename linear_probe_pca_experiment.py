@@ -2944,27 +2944,6 @@ def main():
 
         log_diagnostics(ner_acts, ner_labels, "NER (Named Entity Recognition)", logger)
 
-        # Method 1: PCA
-        logger.info("\n  Method: PCA (top 10 components)")
-        ner_pca_results = apply_pca_and_probe(
-            ner_acts,
-            ner_labels,
-            n_components=n_components,
-            n_runs=n_runs,
-            logger=logger
-        )
-
-        for run in range(args.n_runs):
-            all_results.append({
-                'layer': layer,
-                'task': 'ner',
-                'method': 'pca',
-                'run': run,
-                'mutual_information': ner_pca_results['mutual_information'][run],
-                'accuracy': ner_pca_results['accuracy'][run],
-                'f1_score': ner_pca_results['f1_score'][run]
-            })
-
         # Method 2: Random baseline
         logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         ner_random_results = apply_random_and_probe(
@@ -2999,27 +2978,6 @@ def main():
 
         log_diagnostics(word_length_acts, word_length_labels, "Word Length", logger)
 
-        # Method 1: PCA
-        logger.info("\n  Method: PCA (top 10 components)")
-        word_length_pca_results = apply_pca_and_probe(
-            word_length_acts,
-            word_length_labels,
-            n_components=n_components,
-            n_runs=n_runs,
-            logger=logger
-        )
-
-        for run in range(args.n_runs):
-            all_results.append({
-                'layer': layer,
-                'task': 'word_length',
-                'method': 'pca',
-                'run': run,
-                'mutual_information': word_length_pca_results['mutual_information'][run],
-                'accuracy': word_length_pca_results['accuracy'][run],
-                'f1_score': word_length_pca_results['f1_score'][run]
-            })
-
         # Method 2: Random baseline
         logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
         word_length_random_results = apply_random_and_probe(
@@ -3053,27 +3011,6 @@ def main():
         )
 
         log_diagnostics(sentiment_acts, sentiment_labels, "Sentiment", logger)
-
-        # Method 1: PCA
-        logger.info("\n  Method: PCA (top 10 components)")
-        sentiment_pca_results = apply_pca_and_probe(
-            sentiment_acts,
-            sentiment_labels,
-            n_components=n_components,
-            n_runs=n_runs,
-            logger=logger
-        )
-
-        for run in range(args.n_runs):
-            all_results.append({
-                'layer': layer,
-                'task': 'sentiment',
-                'method': 'pca',
-                'run': run,
-                'mutual_information': sentiment_pca_results['mutual_information'][run],
-                'accuracy': sentiment_pca_results['accuracy'][run],
-                'f1_score': sentiment_pca_results['f1_score'][run]
-            })
 
         # Method 2: Random baseline
         logger.info(f"\n  Method: Random baseline ({n_subsets} subsets, Gaussian ~ N({random_mean if random_mean else 'd_model/20'}, {random_std if random_std else 5}))")
