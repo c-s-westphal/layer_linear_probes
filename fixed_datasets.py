@@ -146,9 +146,8 @@ def create_ner_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in common_nouns:
-        prompted_text = f"What type of entity is '{word}' in the following text: {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 0
         })
@@ -252,9 +251,8 @@ def create_ner_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in proper_nouns:
-        prompted_text = f"What type of entity is '{word}' in the following text: {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 1
         })
@@ -441,9 +439,8 @@ def create_word_length_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in short_words:
-        prompted_text = f"Detect the number of letters in the following word: {word}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 0
         })
@@ -576,9 +573,8 @@ def create_word_length_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in medium_words:
-        prompted_text = f"Detect the number of letters in the following word: {word}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 1
         })
@@ -749,9 +745,8 @@ def create_word_length_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in long_words:
-        prompted_text = f"Detect the number of letters in the following word: {word}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 2
         })
@@ -972,9 +967,8 @@ def create_verb_tense_dataset_diverse() -> List[Dict]:
     ]
 
     for verb, text in past_verbs:
-        prompted_text = f"Identify the tense of the verb '{verb}': {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': verb,
             'label': 0
         })
@@ -1181,9 +1175,8 @@ def create_verb_tense_dataset_diverse() -> List[Dict]:
     ]
 
     for verb, text in present_verbs:
-        prompted_text = f"Identify the tense of the verb '{verb}': {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': verb,
             'label': 1
         })
@@ -1390,9 +1383,8 @@ def create_verb_tense_dataset_diverse() -> List[Dict]:
     ]
 
     for verb, text in future_verbs:
-        prompted_text = f"Identify the tense of the verb '{verb}': {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': verb,
             'label': 2
         })
@@ -1612,9 +1604,8 @@ def create_sentiment_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in positive_words:
-        prompted_text = f"Classify the sentiment as positive, negative, or neutral: {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 0
         })
@@ -1818,9 +1809,8 @@ def create_sentiment_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in negative_words:
-        prompted_text = f"Classify the sentiment as positive, negative, or neutral: {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 1
         })
@@ -2037,9 +2027,8 @@ def create_sentiment_dataset_diverse() -> List[Dict]:
     ]
 
     for word, text in neutral_words:
-        prompted_text = f"Classify the sentiment as positive, negative, or neutral: {text}"
         dataset.append({
-            'text': prompted_text,
+            'text': text,
             'target_word': word,
             'label': 2
         })

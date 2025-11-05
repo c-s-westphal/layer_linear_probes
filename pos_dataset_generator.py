@@ -874,22 +874,18 @@ def generate_pos_dataset() -> List[Dict]:
 
     # Add all noun examples (200)
     for text, target in noun_examples:
-        prompted_text = f"What part of speech is the word '{target}' in the following sentence: {text}"
-        dataset.append({'text': prompted_text, 'target_word': target, 'label': 0})
+        dataset.append({'text': text, 'target_word': target, 'label': 0})
 
     # Add all verb examples (200)
     for text, target in verb_examples:
-        prompted_text = f"What part of speech is the word '{target}' in the following sentence: {text}"
-        dataset.append({'text': prompted_text, 'target_word': target, 'label': 1})
+        dataset.append({'text': text, 'target_word': target, 'label': 1})
 
     # Add all adjective examples (200)
     for text, target in adjective_examples:
-        prompted_text = f"What part of speech is the word '{target}' in the following sentence: {text}"
-        dataset.append({'text': prompted_text, 'target_word': target, 'label': 2})
+        dataset.append({'text': text, 'target_word': target, 'label': 2})
 
     # Add all adverb examples (200)
     for text, target in adverb_examples:
-        prompted_text = f"What part of speech is the word '{target}' in the following sentence: {text}"
-        dataset.append({'text': prompted_text, 'target_word': target, 'label': 3})
+        dataset.append({'text': text, 'target_word': target, 'label': 3})
 
     return dataset
